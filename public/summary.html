@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arena - Summary</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <nav></nav>
+
+      <section class="card">
+        <h1>Run Summary</h1>
+        <div id="summaryBox" class="card inner">Loading...</div>
+        <button id="newRunBtn">Start New Run</button>
+        <p id="error" class="error"></p>
+      </section>
+    </main>
+
+    <script src="/api.js"></script>
+    <script src="/app.js"></script>
+    <script>
+      App.renderNav();
+
+      function computeFinalScore(run) {
+        return (run.wins * 10)
+          + (run.fame * 5)
+          + ((run.stats.STR + run.stats.AGI + run.stats.END) * 2)
+          + Math.floor(run.gold / 2)
+          - (run.seriousWoundsTaken * 5);
+      }
+
+      function renderSummary(run) {
+        const finalScore = computeFinalScore(run);
+        document.getElementById('summaryBox').innerHTML = `
+          <p><strong>Run:</strong> ${run.id}</p>
+          <p><strong>Status:</strong> ${run.status}</p>
+          <p><strong>Stats:</strong> ${App.formatStats(run.stats)}</p>
+          <p><strong>Record:</strong> ${run.wins}W - ${run.losses}L</p>
+          <p><strong>Gold:</strong> ${run.gold}</p>
+          <p><strong>Fame:</strong> ${run.fame}</p>
+          <p><strong>Serious Wounds Taken:</strong> ${run.seriousWoundsTaken}</p>
+          <p><strong>Final Score:</strong> ${finalScore}</p>
+        `;
+      }
+
+      document.getElementById('newRunBtn').addEventListener('click', () => {
+        Api.clearRunId();
+        location.href = '/index.html';
+      });
+
+      (async function init() {
+        Api.clearError();
+        try {
+          const run = await Api.getRun();
+          if (!run) {
+            document.getElementById('summaryBox').textContent = 'No run found. Start a new run.';
+            return;
+          }
+          renderSummary(run);
+        } catch (error) {
+          Api.showError(error);
+        }
+      })();
+    </script>
+  </body>
+</html>

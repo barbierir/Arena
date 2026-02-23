@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arena - Start</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <nav></nav>
+
+      <section class="card">
+        <h1>Arena</h1>
+        <p>Start a new run or continue your saved one.</p>
+        <div class="row">
+          <button id="newRunBtn">New Run</button>
+          <button id="continueBtn">Continue</button>
+        </div>
+        <p id="status" class="muted"></p>
+        <p id="error" class="error"></p>
+      </section>
+    </main>
+
+    <script src="/api.js"></script>
+    <script src="/app.js"></script>
+    <script>
+      App.renderNav();
+      const statusEl = document.getElementById('status');
+      const continueBtn = document.getElementById('continueBtn');
+
+      async function checkContinue() {
+        Api.clearError();
+        const runId = Api.getRunId();
+        const playerId = Api.getPlayerId();
+
+        if (!runId || !playerId) {
+          continueBtn.disabled = true;
+          statusEl.textContent = 'No saved run found.';
+          return;
+        }
+
+        try {
+          const run = await Api.getRun();
+          continueBtn.disabled = false;
+          statusEl.textContent = run ? `Saved run: ${run.id}` : 'Saved run missing.';
+        } catch (error) {
+          continueBtn.disabled = true;
+          Api.showError(error);
+        }
+      }
+
+      document.getElementById('newRunBtn').addEventListener('click', async () => {
+        Api.clearError();
+        try {
+          const data = await Api.request('/api/run/new', {
+            method: 'POST',
+            headers: Api.jsonHeaders(),
+            body: JSON.stringify({})
+          });
+
+          Api.setPlayerId(data.playerId);
+          Api.setRunId(data.runId);
+          location.href = '/recruit.html';
+        } catch (error) {
+          Api.showError(error);
+        }
+      });
+
+      continueBtn.addEventListener('click', async () => {
+        Api.clearError();
+        try {
+          const run = await Api.getRun();
+          if (!run) throw new Error('Run not found');
+          location.href = run.roster && run.roster.length > 0 ? '/game.html' : '/recruit.html';
+        } catch (error) {
+          Api.showError(error);
+        }
+      });
+
+      checkContinue();
+    </script>
+  </body>
+</html>

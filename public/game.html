@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arena - Game</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <nav></nav>
+
+      <section class="card">
+        <h1>Game</h1>
+        <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span> | <strong>Wound:</strong> <span id="wound">-</span></p>
+        <p><strong>Record:</strong> <span id="record">-</span> | <strong>Fame:</strong> <span id="fame">-</span></p>
+        <p><strong>Stats:</strong> <span id="stats">-</span></p>
+
+        <div class="row">
+          <button id="trainStrBtn">Train STR</button>
+          <button id="trainAgiBtn">Train AGI</button>
+          <button id="trainEndBtn">Train END</button>
+        </div>
+        <div class="row">
+          <button id="restBtn">Rest</button>
+          <button id="fightAiBtn">Fight AI</button>
+          <button id="postChallengeBtn">Post Challenge</button>
+        </div>
+
+        <p id="lastResult" class="muted">No recent action.</p>
+        <div id="shareBox" class="card inner hidden">
+          <p><strong>Share Link</strong></p>
+          <input id="shareLink" readonly />
+          <button id="copyShareBtn">Copy</button>
+        </div>
+        <p id="error" class="error"></p>
+      </section>
+    </main>
+
+    <script src="/api.js"></script>
+    <script src="/app.js"></script>
+    <script>
+      App.renderNav();
+      let run = null;
+
+      function ensureSession() {
+        if (!Api.getRunId() || !Api.getPlayerId()) {
+          location.href = '/index.html';
+          return false;
+        }
+        return true;
+      }
+
+      function setActionDisabled(disabled) {
+        document.getElementById('trainStrBtn').disabled = disabled;
+        document.getElementById('trainAgiBtn').disabled = disabled;
+        document.getElementById('trainEndBtn').disabled = disabled;
+        document.getElementById('restBtn').disabled = disabled;
+        document.getElementById('fightAiBtn').disabled = disabled;
+        document.getElementById('postChallengeBtn').disabled = disabled;
+      }
+
+      function renderRun() {
+        document.getElementById('turns').textContent = run.turns;
+        document.getElementById('gold').textContent = run.gold;
+        document.getElementById('wound').textContent = run.wound;
+        document.getElementById('record').textContent = `${run.wins}W - ${run.losses}L`;
+        document.getElementById('fame').textContent = run.fame;
+        document.getElementById('stats').textContent = App.formatStats(run.stats);
+        setActionDisabled(run.turns <= 0);
+
+        if (App.runEnded(run)) {
+          location.href = '/summary.html';
+        }
+      }
+
+      async function loadRun() {
+        run = await Api.getRun();
+        if (!run) {
+          location.href = '/index.html';
+          return;
+        }
+        renderRun();
+      }
+
+      function setResult(text) {
+        document.getElementById('lastResult').textContent = text;
+      }
+
+      async function doTrain(stat) {
+        Api.clearError();
+        try {
+          const data = await Api.request(`/api/run/${Api.getRunId()}/action/train`, {
+            method: 'POST',
+            headers: Api.jsonHeaders(),
+            body: JSON.stringify({ playerId: Api.getPlayerId(), stat })
+          });
+          run = data.run;
+          renderRun();
+          setResult(`Training complete. Injury result: ${data.injury}.`);
+        } catch (error) {
+          Api.showError(error);
+        }
+      }
+
+      document.getElementById('trainStrBtn').addEventListener('click', () => doTrain('str'));
+      document.getElementById('trainAgiBtn').addEventListener('click', () => doTrain('agi'));
+      document.getElementById('trainEndBtn').addEventListener('click', () => doTrain('end'));
+
+      document.getElementById('restBtn').addEventListener('click', async () => {
+        Api.clearError();
+        try {
+          const data = await Api.request(`/api/run/${Api.getRunId()}/action/rest`, {
+            method: 'POST',
+            headers: Api.jsonHeaders(),
+            body: JSON.stringify({ playerId: Api.getPlayerId() })
+          });
+          run = data.run;
+          renderRun();
+          setResult('Rest completed.');
+        } catch (error) {
+          Api.showError(error);
+        }
+      });
+
+      document.getElementById('fightAiBtn').addEventListener('click', async () => {
+        Api.clearError();
+        try {
+          const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, {
+            method: 'POST',
+            headers: Api.jsonHeaders(),
+            body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty: 'normal' })
+          });
+          run = data.run;
+          renderRun();
+          setResult(`AI Fight: ${data.fight.result.toUpperCase()} (injury: ${data.fight.injury}).`);
+        } catch (error) {
+          Api.showError(error);
+        }
+      });
+
+      document.getElementById('postChallengeBtn').addEventListener('click', async () => {
+        Api.clearError();
+        try {
+          const data = await Api.request(`/api/run/${Api.getRunId()}/challenge/post`, {
+            method: 'POST',
+            headers: Api.jsonHeaders(),
+            body: JSON.stringify({ playerId: Api.getPlayerId() })
+          });
+          run = data.run;
+          renderRun();
+          const url = `${location.origin}/challenge.html?id=${encodeURIComponent(data.challengeId)}`;
+          document.getElementById('shareLink').value = url;
+          document.getElementById('shareBox').classList.remove('hidden');
+          setResult('Challenge posted. Share the link.');
+        } catch (error) {
+          Api.showError(error);
+        }
+      });
+
+      document.getElementById('copyShareBtn').addEventListener('click', async () => {
+        const link = document.getElementById('shareLink').value;
+        try {
+          await Api.copyText(link);
+          setResult('Share link copied.');
+        } catch (_error) {
+          setResult('Could not copy link.');
+        }
+      });
+
+      (async function init() {
+        if (!ensureSession()) return;
+        try {
+          await loadRun();
+        } catch (error) {
+          Api.showError(error);
+        }
+      })();
+    </script>
+  </body>
+</html>
