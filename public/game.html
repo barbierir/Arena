@@ -6,25 +6,25 @@
     <title>Arena - Game</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="arena-page">
     <main>
       <nav></nav>
 
-      <section class="card">
+      <section class="card panel">
         <h1>Game</h1>
         <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span> | <strong>Wound:</strong> <span id="wound">-</span></p>
         <p><strong>Record:</strong> <span id="record">-</span> | <strong>Fame:</strong> <span id="fame">-</span></p>
         <p><strong>Stats:</strong> <span id="stats">-</span></p>
 
         <div class="row">
-          <button id="trainStrBtn">Train STR</button>
-          <button id="trainAgiBtn">Train AGI</button>
-          <button id="trainEndBtn">Train END</button>
+          <button data-action-btn id="trainStrBtn">Train STR</button>
+          <button data-action-btn id="trainAgiBtn">Train AGI</button>
+          <button data-action-btn id="trainEndBtn">Train END</button>
         </div>
         <div class="row">
-          <button id="restBtn">Rest</button>
-          <button id="fightAiBtn">Fight AI</button>
-          <button id="postChallengeBtn">Post Challenge</button>
+          <button data-action-btn id="restBtn">Rest</button>
+          <button data-action-btn id="fightAiBtn">Fight AI</button>
+          <button data-action-btn id="postChallengeBtn">Post Challenge</button>
         </div>
 
         <p id="lastResult" class="muted">No recent action.</p>
@@ -51,15 +51,6 @@
         return true;
       }
 
-      function setActionDisabled(disabled) {
-        document.getElementById('trainStrBtn').disabled = disabled;
-        document.getElementById('trainAgiBtn').disabled = disabled;
-        document.getElementById('trainEndBtn').disabled = disabled;
-        document.getElementById('restBtn').disabled = disabled;
-        document.getElementById('fightAiBtn').disabled = disabled;
-        document.getElementById('postChallengeBtn').disabled = disabled;
-      }
-
       function renderRun() {
         document.getElementById('turns').textContent = run.turns;
         document.getElementById('gold').textContent = run.gold;
@@ -67,7 +58,7 @@
         document.getElementById('record').textContent = `${run.wins}W - ${run.losses}L`;
         document.getElementById('fame').textContent = run.fame;
         document.getElementById('stats').textContent = App.formatStats(run.stats);
-        setActionDisabled(run.turns <= 0);
+        App.disableActions(run.turns <= 0);
 
         if (App.runEnded(run)) {
           location.href = '/summary.html';
@@ -89,7 +80,9 @@
 
       async function doTrain(stat) {
         Api.clearError();
+        App.disableActions(true);
         try {
+          await App.showActionOverlay({ title: 'Training...', gifPath: '/assets/train.gif', durationMs: 3000 });
           const data = await Api.request(`/api/run/${Api.getRunId()}/action/train`, {
             method: 'POST',
             headers: Api.jsonHeaders(),
@@ -100,6 +93,8 @@
           setResult(`Training complete. Injury result: ${data.injury}.`);
         } catch (error) {
           Api.showError(error);
+        } finally {
+          App.disableActions(run ? run.turns <= 0 : false);
         }
       }
 
@@ -109,7 +104,9 @@
 
       document.getElementById('restBtn').addEventListener('click', async () => {
         Api.clearError();
+        App.disableActions(true);
         try {
+          await App.showActionOverlay({ title: 'Resting...', gifPath: '/assets/rest.gif', durationMs: 3000 });
           const data = await Api.request(`/api/run/${Api.getRunId()}/action/rest`, {
             method: 'POST',
             headers: Api.jsonHeaders(),
@@ -120,22 +117,34 @@
           setResult('Rest completed.');
         } catch (error) {
           Api.showError(error);
+        } finally {
+          App.disableActions(run ? run.turns <= 0 : false);
         }
       });
 
       document.getElementById('fightAiBtn').addEventListener('click', async () => {
         Api.clearError();
+        App.disableActions(true);
         try {
           const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, {
             method: 'POST',
             headers: Api.jsonHeaders(),
             body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty: 'normal' })
           });
+          await App.showFightPlayback({
+            leftGif: '/assets/fight-left.gif',
+            rightGif: '/assets/fight-right.gif',
+            durationMs: 30000,
+            onSkip: () => setResult('Combat playback skipped.')
+          });
+
           run = data.run;
           renderRun();
           setResult(`AI Fight: ${data.fight.result.toUpperCase()} (injury: ${data.fight.injury}).`);
         } catch (error) {
           Api.showError(error);
+        } finally {
+          App.disableActions(run ? run.turns <= 0 : false);
         }
       });
 
@@ -149,7 +158,7 @@
           });
           run = data.run;
           renderRun();
-          const url = `${location.origin}/challenge.html?id=${encodeURIComponent(data.challengeId)}`;
+          const url = `${location.origin}/challenge/${encodeURIComponent(data.challengeId)}`;
           document.getElementById('shareLink').value = url;
           document.getElementById('shareBox').classList.remove('hidden');
           setResult('Challenge posted. Share the link.');

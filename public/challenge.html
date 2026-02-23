@@ -6,11 +6,11 @@
     <title>Arena - Challenge</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="arena-page">
     <main>
       <nav></nav>
 
-      <section class="card">
+      <section class="card panel">
         <h1>Challenge</h1>
         <label>
           Challenge ID:
@@ -34,7 +34,11 @@
 
       function challengeIdFromUrl() {
         const params = new URLSearchParams(location.search);
-        return params.get('id') || params.get('challengeId') || '';
+        const fromQuery = params.get('id') || params.get('challengeId') || '';
+        if (fromQuery) return fromQuery;
+
+        const match = location.pathname.match(/^\/challenge\/([^/]+)$/);
+        return match ? decodeURIComponent(match[1]) : '';
       }
 
       function setChallengeView(data) {
@@ -91,6 +95,7 @@
           return;
         }
 
+        document.getElementById('acceptBtn').disabled = true;
         try {
           const data = await Api.request(`/api/challenge/${encodeURIComponent(challengeId)}/accept`, {
             method: 'POST',
@@ -98,7 +103,16 @@
             body: JSON.stringify({ runId, playerId })
           });
 
-          document.getElementById('result').textContent = `Accepted. Winner run: ${data.result.winnerRunId}`;
+          await App.showFightPlayback({
+            leftGif: '/assets/fight-left.gif',
+            rightGif: '/assets/fight-right.gif',
+            durationMs: 30000,
+            onSkip: () => {
+              document.getElementById('result').textContent = 'Combat playback skipped.';
+            }
+          });
+
+          document.getElementById('result').textContent = `Winner run: ${data.result.winnerRunId}. Injury: ${data.result.injury}`;
           setChallengeView({ challenge: data.challenge });
 
           if (App.runEnded(data.accepterRun)) {
@@ -106,6 +120,7 @@
           }
         } catch (error) {
           Api.showError(error);
+          document.getElementById('acceptBtn').disabled = false;
         }
       });
 

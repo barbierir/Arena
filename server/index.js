@@ -152,7 +152,7 @@ app.post('/api/run/:runId/challenge/post', (req, res) => {
     const { playerId } = req.body;
     const run = getRunOrThrow(req.params.runId, playerId);
     const challenge = postChallenge(run);
-    const shareUrl = `/challenge.html?challengeId=${challenge.id}`;
+    const shareUrl = `/challenge/${challenge.id}`;
     res.json({ challengeId: challenge.id, shareUrl, run });
   } catch (error) {
     sendError(res, error);
@@ -198,6 +198,11 @@ app.post('/api/challenge/:challengeId/accept', (req, res) => {
   } catch (error) {
     sendError(res, error);
   }
+});
+
+
+app.get('/challenge/:challengeId', (req, res) => {
+  res.redirect(`/challenge.html?id=${encodeURIComponent(req.params.challengeId)}`);
 });
 
 app.listen(PORT, () => {

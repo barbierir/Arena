@@ -6,11 +6,11 @@
     <title>Arena - Recruit</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
+  <body class="arena-page">
     <main>
       <nav></nav>
 
-      <section class="card">
+      <section class="card panel">
         <h1>Recruit Gladiator</h1>
         <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span></p>
         <div class="row">
@@ -18,7 +18,14 @@
           <button id="skipBtn">Skip (cost 1 turn)</button>
           <button id="buyBtn" disabled>Buy</button>
         </div>
-        <div id="candidateCard" class="card inner">No candidate yet.</div>
+
+        <div class="recruit-layout">
+          <div class="recruit-gif-wrap">
+            <img id="recruitGif" src="/assets/recruit-1.gif" alt="Recruit animation" />
+          </div>
+          <div id="candidateCard" class="card inner">No candidate yet.</div>
+        </div>
+
         <p id="error" class="error"></p>
       </section>
     </main>
@@ -36,6 +43,10 @@
           return false;
         }
         return true;
+      }
+
+      function swapRecruitGif() {
+        document.getElementById('recruitGif').src = App.pickRandomRecruitGif();
       }
 
       function setActionDisabled(disabled) {
@@ -65,7 +76,7 @@
         card.innerHTML = `
           <h3>${currentCandidate.name}</h3>
           <p>${App.formatStats(currentCandidate.stats)}</p>
-          <p>Price: ${currentCandidate.price}</p>
+          <p><strong>Price:</strong> ${currentCandidate.price}</p>
         `;
         buyBtn.disabled = false;
       }
@@ -81,6 +92,7 @@
 
       document.getElementById('generateBtn').addEventListener('click', async () => {
         Api.clearError();
+        swapRecruitGif();
         try {
           const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/generate`, {
             method: 'POST',
@@ -97,6 +109,7 @@
 
       document.getElementById('skipBtn').addEventListener('click', async () => {
         Api.clearError();
+        swapRecruitGif();
         try {
           const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/skip`, {
             method: 'POST',
@@ -135,6 +148,7 @@
         if (!ensureSession()) return;
         try {
           await refreshRun();
+          swapRecruitGif();
         } catch (error) {
           Api.showError(error);
         }
