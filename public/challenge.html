@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arena - Challenge</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <nav></nav>
+
+      <section class="card">
+        <h1>Challenge</h1>
+        <label>
+          Challenge ID:
+          <input id="challengeIdInput" />
+        </label>
+        <div class="row">
+          <button id="loadChallengeBtn">Load Challenge</button>
+          <button id="acceptBtn" disabled>Accept (cost 1 turn)</button>
+        </div>
+
+        <div id="challengeView" class="card inner">No challenge loaded.</div>
+        <p id="result" class="muted"></p>
+        <p id="error" class="error"></p>
+      </section>
+    </main>
+
+    <script src="/api.js"></script>
+    <script src="/app.js"></script>
+    <script>
+      App.renderNav();
+
+      function challengeIdFromUrl() {
+        const params = new URLSearchParams(location.search);
+        return params.get('id') || params.get('challengeId') || '';
+      }
+
+      function setChallengeView(data) {
+        const box = document.getElementById('challengeView');
+        box.innerHTML = '';
+
+        if (data.challenge.status === 'OPEN') {
+          box.innerHTML = `
+            <p><strong>Status:</strong> OPEN</p>
+            <p><strong>Creator Snapshot:</strong> ${App.formatStats(data.challenge.creatorSnapshot.stats)}</p>
+            <p><strong>Creator Rating:</strong> ${data.challenge.creatorSnapshot.rating.toFixed(1)}</p>
+            <p><strong>Expires:</strong> ${data.challenge.expiresAt}</p>
+          `;
+          document.getElementById('acceptBtn').disabled = false;
+          return;
+        }
+
+        document.getElementById('acceptBtn').disabled = true;
+        if (data.challenge.status === 'RESOLVED') {
+          box.innerHTML = `
+            <p><strong>Status:</strong> RESOLVED</p>
+            <p><strong>Winner Run:</strong> ${data.challenge.result.winnerRunId}</p>
+            <p><strong>Loser Run:</strong> ${data.challenge.result.loserRunId}</p>
+          `;
+          return;
+        }
+
+        box.innerHTML = '<p><strong>Status:</strong> EXPIRED</p><p>This challenge has expired.</p>';
+      }
+
+      async function loadChallenge() {
+        Api.clearError();
+        const id = document.getElementById('challengeIdInput').value.trim();
+        if (!id) return;
+
+        try {
+          const data = await Api.request(`/api/challenge/${encodeURIComponent(id)}`);
+          setChallengeView(data);
+        } catch (error) {
+          Api.showError(error);
+        }
+      }
+
+      document.getElementById('loadChallengeBtn').addEventListener('click', loadChallenge);
+
+      document.getElementById('acceptBtn').addEventListener('click', async () => {
+        Api.clearError();
+        const challengeId = document.getElementById('challengeIdInput').value.trim();
+        const runId = Api.getRunId();
+        const playerId = Api.getPlayerId();
+
+        if (!runId || !playerId) {
+          location.href = '/index.html';
+          return;
+        }
+
+        try {
+          const data = await Api.request(`/api/challenge/${encodeURIComponent(challengeId)}/accept`, {
+            method: 'POST',
+            headers: Api.jsonHeaders(),
+            body: JSON.stringify({ runId, playerId })
+          });
+
+          document.getElementById('result').textContent = `Accepted. Winner run: ${data.result.winnerRunId}`;
+          setChallengeView({ challenge: data.challenge });
+
+          if (App.runEnded(data.accepterRun)) {
+            location.href = '/summary.html';
+          }
+        } catch (error) {
+          Api.showError(error);
+        }
+      });
+
+      (function init() {
+        const id = challengeIdFromUrl();
+        document.getElementById('challengeIdInput').value = id;
+        if (id) loadChallenge();
+      })();
+    </script>
+  </body>
+</html>
