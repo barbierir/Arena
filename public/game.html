@@ -59,9 +59,37 @@
       document.getElementById('trainBtn').addEventListener('click', doTrain);
       document.getElementById('gladiatorGif').addEventListener('error', () => { document.getElementById('gladiatorGif').classList.add('hidden'); document.getElementById('gladiatorFallback').classList.remove('hidden'); });
       document.getElementById('restBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { await App.showActionOverlay({ title:'Resting...', gifPath:'/assets/rest.gif', durationMs: 1500 }); const data = await Api.request(`/api/run/${Api.getRunId()}/action/rest`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); setResult('Rest completed.'); } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
-      document.getElementById('fightAiBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty:'normal' }) }); await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', leftName: localStorage.getItem('arenaGladiatorName') || 'You', rightName:'Arena AI', durationMs: 18000, rewards: { gold: data.fight.gold || 0, fame: data.fight.fame || 0 }, onSkip: ()=>setResult('Combat playback skipped.') }); run = data.run; renderRun(); const status = data.fight.result === 'win' ? 'VICTORY' : 'DEFEAT'; renderResultsPanel(status, `Injury: ${data.fight.injury}`); } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
+      document.getElementById('fightAiBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty:'normal' }) }); const playback = await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', leftName: localStorage.getItem('arenaGladiatorName') || 'You', rightName:'Arena AI', durationMs: 18000, rewards: { gold: data.fight.gold || 0, fame: data.fight.fame || 0 }, fightResult: data.fight, onSkip: ()=>setResult('Combat playback skipped.') }); run = data.run; renderRun(); const status = data.fight.result === 'win' ? 'VICTORY' : 'DEFEAT'; renderResultsPanel(status, `Injury: ${data.fight.injury}`); if (playback && playback.overlayOutcome && playback.authoritativeOutcome && playback.overlayOutcome !== playback.authoritativeOutcome) { console.error('Fight UI mismatch detected', { authoritative: playback.authoritativeOutcome, overlay: playback.overlayOutcome, fight: data.fight, playback }); } } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
       document.getElementById('postChallengeBtn').addEventListener('click', async () => { try { const data = await Api.request(`/api/run/${Api.getRunId()}/challenge/post`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); document.getElementById('shareLink').value = `${location.origin}/challenge/${encodeURIComponent(data.challengeId)}`; document.getElementById('shareBox').classList.remove('hidden'); } catch (e) { Api.showError(e); } });
       document.getElementById('copyShareBtn').addEventListener('click', async () => { try { await Api.copyText(document.getElementById('shareLink').value); } catch {} });
+      window.__debugFightOnce = async function __debugFightOnce() {
+        if (!ensureSession()) return { ok: false, reason: 'no-session' };
+        const before = await Api.getRun();
+        const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty:'normal' }) });
+        const playback = await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', leftName: localStorage.getItem('arenaGladiatorName') || 'You', rightName:'Arena AI', durationMs: 2500, rewards: { gold: data.fight.gold || 0, fame: data.fight.fame || 0 }, fightResult: data.fight });
+        run = data.run;
+        renderRun();
+        const expected = data.fight.result;
+        const displayed = playback && playback.overlayOutcome ? playback.overlayOutcome : null;
+        const outcomeMatches = displayed === expected;
+        const summary = {
+          authoritativeOutcome: expected,
+          authoritativeFinalHp: { player: expected === 'win' ? '>0' : '0-or-low', opponent: expected === 'win' ? '0-or-low' : '>0' },
+          overlayDisplayedOutcome: displayed,
+          overlayHp: playback ? { player: playback.leftHp, opponent: playback.rightHp } : null,
+          winsBefore: before ? before.wins : null,
+          winsAfter: run.wins,
+          lossesBefore: before ? before.losses : null,
+          lossesAfter: run.losses,
+          recordMatchesOutcome: expected === 'win' ? run.wins === ((before && before.wins) || 0) + 1 : run.losses === ((before && before.losses) || 0) + 1,
+          outcomeMatches
+        };
+        console.log('[__debugFightOnce] summary', summary);
+        if (!summary.outcomeMatches || !summary.recordMatchesOutcome) {
+          console.error('[__debugFightOnce] mismatch detected', { summary, fight: data.fight, playback });
+        }
+        return summary;
+      };
       (async function init(){ if (!ensureSession()) return; loadGameState(); renderTrainingLog(); await loadRun(); if (localStorage.getItem('arenaInstantFight') === 'true') { localStorage.removeItem('arenaInstantFight'); setTimeout(() => document.getElementById('fightAiBtn').click(), 150); } })();
     </script>
   </body>
