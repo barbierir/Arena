@@ -29,9 +29,18 @@ button:disabled{opacity:.35;filter:grayscale(.7)}
 .shake{animation:shake .2s linear}
 .recruit-intro{position:absolute;inset:0;background:rgba(0,0,0,.7);display:grid;place-items:center;font-size:1.35rem;font-weight:700;animation:fade-out 1.2s ease forwards}
 .results-panel{margin-top:.8rem;border:1px solid rgba(255,255,255,.2);padding:.8rem;border-radius:12px;background:rgba(0,0,0,.4)}
+.training-log-panel{width:min(100%,300px);margin:.2rem 0 .6rem;padding:.65rem .75rem}
+.training-log-panel h3{margin:.1rem 0 .45rem;font-size:1rem}
+.training-log-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column}
+.training-log-entry{display:flex;flex-direction:column;gap:.12rem;padding:.34rem 0;border-top:1px solid rgba(255,255,255,.08)}
+.training-log-entry:first-child{border-top:0;padding-top:0}
+.training-log-meta{font-size:.76rem;color:#cbbda8}
+.training-log-result{font-size:.9rem;color:#f6f3ef}
+.training-log-entry.latest{animation:training-log-fade .22s ease}
 @keyframes float-up{from{transform:translateY(0);opacity:1}to{transform:translateY(-38px);opacity:0}}
 @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(var(--shake-intensity,4px))}50%{transform:translateX(calc(var(--shake-intensity,4px)*-1))}100%{transform:translateX(0)}}
 @keyframes btn-bounce{0%{transform:scale(.96)}60%{transform:scale(1.02)}100%{transform:scale(1)}}
 @keyframes fade-out{0%,70%{opacity:1}100%{opacity:0;visibility:hidden}}
+@keyframes training-log-fade{from{opacity:.35}to{opacity:1}}
 .reduce-motion *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
-@media (max-width:760px){body{padding-top:174px}.arena-hud{padding:.5rem}.hud-hp{width:88px}}
+@media (max-width:760px){body{padding-top:174px}.arena-hud{padding:.5rem}.hud-hp{width:88px}.training-log-panel{width:100%}}
