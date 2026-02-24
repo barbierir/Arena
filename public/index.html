@@ -15,6 +15,7 @@
         <h1>Blood & Glory Arena</h1>
         <p>Fast run. Fast fights. Keep your streak alive.</p>
         <div class="row" id="startActions"></div>
+        <p id="arenaHint" class="arena-hint hidden" aria-hidden="true">Enter the Arena</p>
         <p id="status" class="muted"></p>
         <button id="detailsToggle" class="btn-secondary hidden">Details</button>
         <p id="savedId" class="muted hidden"></p>
@@ -38,11 +39,16 @@
       function renderButtons(run) {
         const hasRun = !!run;
         const hasGladiator = hasRun && run.roster && run.roster.length > 0;
+        const arenaHint = document.getElementById('arenaHint');
+        const startButtonClass = hasRun ? 'btn-secondary start-new-btn' : 'btn--primary-arcade start-new-btn start-new-btn--primary';
         startActions.innerHTML = `
-          <button class="btn--primary-arcade" id="continueBtn" ${hasRun ? '' : 'disabled'}>Continue</button>
-          <button class="btn-secondary" id="newRunBtn">New Run</button>
+          ${hasRun ? '<button class="btn--primary-arcade" id="continueBtn">Continue</button>' : ''}
+          <button class="${startButtonClass}" id="newRunBtn">Start New Game</button>
           ${hasGladiator ? '<button class="btn-primary-alt" id="instantFightBtn">Instant Fight</button>' : ''}
         `;
+        arenaHint.classList.toggle('hidden', hasRun);
+        arenaHint.setAttribute('aria-hidden', hasRun ? 'true' : 'false');
+
         document.getElementById('continueBtn')?.addEventListener('click', () => {
           location.href = hasGladiator ? '/game.html' : '/recruit.html';
         });
@@ -50,11 +56,16 @@
           localStorage.setItem('arenaInstantFight', 'true');
           location.href = '/game.html';
         });
-        document.getElementById('newRunBtn').addEventListener('click', async () => {
+        const newRunBtn = document.getElementById('newRunBtn');
+        newRunBtn.addEventListener('click', async () => {
           if (newRunInFlight) return;
+          newRunBtn.classList.remove('is-click-bounce');
+          void newRunBtn.offsetWidth;
+          newRunBtn.classList.add('is-click-bounce');
+          setTimeout(() => newRunBtn.classList.remove('is-click-bounce'), 240);
           Api.clearError();
           newRunInFlight = true;
-          document.getElementById('newRunBtn').disabled = true;
+          newRunBtn.disabled = true;
           try {
             const data = await Api.request('/api/run/new', { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({}) });
             Api.setPlayerId(data.playerId);
@@ -67,7 +78,7 @@
             location.href = '/game.html';
           } catch (error) {
             newRunInFlight = false;
-            document.getElementById('newRunBtn').disabled = false;
+            newRunBtn.disabled = false;
             Api.showError(error);
           }
         });
