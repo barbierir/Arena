@@ -39,6 +39,7 @@
       App.renderNav();
       let run = null;
       let currentCandidate = null;
+      let buyInFlight = false;
 
       function ensureSession() {
         if (!Api.getRunId() || !Api.getPlayerId()) {
@@ -92,7 +93,7 @@
         UI.animateCount(card.querySelector('#agiN'), 0, s.AGI, 700, reduced);
         UI.animateCount(card.querySelector('#endN'), 0, s.END, 700, reduced);
         UI.animateCount(card.querySelector('#talN'), 0, s.Talent, 700, reduced);
-        buyBtn.disabled = false;
+        buyBtn.disabled = buyInFlight;
       }
 
       async function refreshRun() {
@@ -142,24 +143,61 @@
 
       document.getElementById('buyBtn').addEventListener('click', async () => {
         Api.clearError();
-        if (!currentCandidate) return;
+        if (buyInFlight || !currentCandidate) return;
+        buyInFlight = true;
+        const buyBtn = document.getElementById('buyBtn');
+        buyBtn.disabled = true;
         try {
+          const candidateToBuy = currentCandidate;
           const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/buy`, {
             method: 'POST',
             headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId(), candidateId: currentCandidate.id })
+            body: JSON.stringify({ playerId: Api.getPlayerId(), candidateId: candidateToBuy.id })
           });
           run = data.run;
           currentCandidate = null;
-          localStorage.setItem('arenaGladiatorName', data.candidate.name);
+          const recruited = data.candidate || candidateToBuy;
+          if (recruited && recruited.name) {
+            localStorage.setItem('arenaGladiatorName', recruited.name);
+          }
           renderRun();
           renderCandidate();
           UI.showToast('Gladiator recruited', 'success');
           location.href = '/game.html';
         } catch (error) {
+          buyInFlight = false;
+          renderCandidate();
           Api.showError(error);
         }
       });
+
+
+      window.__debugRecruit = async function __debugRecruit(attempts = 20) {
+        const summary = { attempts, success: 0, failures: 0, errors: [] };
+
+        for (let i = 0; i < attempts; i += 1) {
+          try {
+            const generated = await Api.request(`/api/run/${Api.getRunId()}/recruit/generate`, {
+              method: 'POST',
+              headers: Api.jsonHeaders(),
+              body: JSON.stringify({ playerId: Api.getPlayerId() })
+            });
+            const candidate = generated.candidate;
+            await Api.request(`/api/run/${Api.getRunId()}/recruit/buy`, {
+              method: 'POST',
+              headers: Api.jsonHeaders(),
+              body: JSON.stringify({ playerId: Api.getPlayerId(), candidateId: candidate.id })
+            });
+            summary.success += 1;
+          } catch (error) {
+            summary.failures += 1;
+            summary.errors.push(error.message);
+          }
+        }
+
+        console.table(summary);
+        return summary;
+      };
 
       (async function init() {
         if (!ensureSession()) return;
