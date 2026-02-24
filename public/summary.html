@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Arena - Summary</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/ui.css" />
   </head>
   <body>
     <main>
@@ -13,12 +14,14 @@
       <section class="card">
         <h1>Run Summary</h1>
         <div id="summaryBox" class="card inner">Loading...</div>
-        <button id="newRunBtn">Start New Run</button>
+        <button class="btn-primary" id="newRunBtn">Start New Run</button>
         <p id="error" class="error"></p>
       </section>
     </main>
 
     <script src="/api.js"></script>
+    <script src="/audio.js"></script>
+    <script src="/ui.js"></script>
     <script src="/app.js"></script>
     <script>
       App.renderNav();
@@ -58,6 +61,7 @@
             document.getElementById('summaryBox').textContent = 'No run found. Start a new run.';
             return;
           }
+          UI.setRun(run);
           renderSummary(run);
         } catch (error) {
           Api.showError(error);

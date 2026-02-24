@@ -11,6 +11,7 @@ function navMarkup() {
 function renderNav() {
   const nav = document.querySelector('nav');
   if (nav) nav.innerHTML = navMarkup();
+  if (window.UI) UI.ensureHud();
 }
 
 function runEnded(run) {
@@ -36,16 +37,19 @@ function ensureOverlay() {
   overlay.innerHTML = `
     <div class="fx-panel">
       <h2 id="fxTitle" class="fx-title"></h2>
+      <div id="fxSubtitle" class="muted"></div>
+      <div id="fxVs" class="fx-vs hidden"><span id="fxLeftName"></span><strong>VS</strong><span id="fxRightName"></span></div>
       <div id="fxFightStage" class="fx-fight-stage hidden">
         <img id="fxLeftGif" class="fx-fighter left" alt="Left fighter" />
         <img id="fxCrowd" class="fx-crowd" src="/assets/crowd-loop.gif" alt="Crowd" />
         <img id="fxRightGif" class="fx-fighter right" alt="Right fighter" />
+        <div class="crowd-meter"><span>Crowd</span><div><i id="crowdMeterFill"></i></div></div>
       </div>
       <img id="fxMainGif" class="fx-main-gif hidden" alt="Animation" />
       <div id="fxProgressWrap" class="fx-progress-wrap hidden">
         <div id="fxProgressBar" class="fx-progress-bar"></div>
       </div>
-      <button id="fxSkipBtn" class="hidden">Skip</button>
+      <button id="fxSkipBtn" class="hidden btn-secondary">Skip</button>
     </div>
   `;
 
@@ -68,65 +72,123 @@ function showActionOverlay({ title, gifPath, durationMs }) {
   return new Promise((resolve) => {
     const overlay = ensureOverlay();
     const titleNode = document.getElementById('fxTitle');
+    const subtitle = document.getElementById('fxSubtitle');
     const mainGif = document.getElementById('fxMainGif');
     const fightStage = document.getElementById('fxFightStage');
     const progressWrap = document.getElementById('fxProgressWrap');
     const skipBtn = document.getElementById('fxSkipBtn');
+    const vs = document.getElementById('fxVs');
+    const reduceMotion = window.UI && UI.getSettings().reduceMotion;
 
     titleNode.textContent = title || 'Working...';
+    subtitle.textContent = `${title || 'Action'}...`;
     mainGif.src = gifPath;
     mainGif.classList.remove('hidden');
     fightStage.classList.add('hidden');
+    vs.classList.add('hidden');
     progressWrap.classList.remove('hidden');
-    skipBtn.classList.add('hidden');
+
+    let done = false;
+    let timer = null;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      overlay.classList.add('hidden');
+      skipBtn.onclick = null;
+      skipBtn.classList.add('hidden');
+      resolve();
+    };
+
+    if (reduceMotion) {
+      skipBtn.classList.remove('hidden');
+      skipBtn.textContent = 'Skip';
+      skipBtn.onclick = finish;
+    } else {
+      skipBtn.classList.add('hidden');
+    }
 
     overlay.classList.remove('hidden');
     animateProgress(durationMs);
-
-    setTimeout(() => {
-      overlay.classList.add('hidden');
-      resolve();
-    }, durationMs);
+    timer = setTimeout(finish, durationMs);
   });
 }
 
-function showFightPlayback({ leftGif, rightGif, durationMs = 30000, onSkip }) {
+function showFightPlayback({ leftGif, rightGif, durationMs = 30000, onSkip, leftName = 'You', rightName = 'Rival' }) {
   return new Promise((resolve) => {
     const overlay = ensureOverlay();
     const titleNode = document.getElementById('fxTitle');
+    const subtitle = document.getElementById('fxSubtitle');
     const mainGif = document.getElementById('fxMainGif');
     const fightStage = document.getElementById('fxFightStage');
     const progressWrap = document.getElementById('fxProgressWrap');
     const skipBtn = document.getElementById('fxSkipBtn');
     const leftNode = document.getElementById('fxLeftGif');
     const rightNode = document.getElementById('fxRightGif');
+    const vs = document.getElementById('fxVs');
+    const crowdMeterFill = document.getElementById('crowdMeterFill');
+    const reduceMotion = window.UI && UI.getSettings().reduceMotion;
 
     let done = false;
     let timer = null;
+    const intervals = [];
+    let crowd = 10;
 
-    function finish(skipped) {
+    function cleanup(skipped) {
       if (done) return;
       done = true;
       if (timer) clearTimeout(timer);
+      intervals.forEach((id) => clearInterval(id));
       skipBtn.onclick = null;
       overlay.classList.add('hidden');
       if (skipped && typeof onSkip === 'function') onSkip();
       resolve();
     }
 
-    titleNode.textContent = 'Arena Combat Playback';
+    titleNode.textContent = 'Fight Intro';
+    subtitle.textContent = 'Crowd roars...';
     leftNode.src = leftGif;
     rightNode.src = rightGif;
+    document.getElementById('fxLeftName').textContent = leftName;
+    document.getElementById('fxRightName').textContent = rightName;
     mainGif.classList.add('hidden');
     fightStage.classList.remove('hidden');
     progressWrap.classList.remove('hidden');
+    vs.classList.remove('hidden');
     skipBtn.classList.remove('hidden');
-    skipBtn.onclick = () => finish(true);
+    skipBtn.textContent = 'Skip Fight';
+    skipBtn.onclick = () => cleanup(true);
 
     overlay.classList.remove('hidden');
     animateProgress(durationMs);
 
-    timer = setTimeout(() => finish(false), durationMs);
+    setTimeout(() => {
+      if (done) return;
+      titleNode.textContent = 'FIGHT!';
+      subtitle.textContent = 'Blades clash in the arena';
+      UI && UI.screenShake(280, 6);
+    }, reduceMotion ? 100 : 3000);
+
+    const tickMs = reduceMotion ? 1600 : 1200;
+    intervals.push(setInterval(() => {
+      if (done) return;
+      const isCrit = Math.random() > 0.82;
+      const heavy = Math.random() > 0.65;
+      const amount = heavy ? Math.floor(Math.random() * 7) + 8 : Math.floor(Math.random() * 5) + 3;
+      const side = Math.random() > 0.5 ? 'left' : 'right';
+      UI && UI.spawnDamageNumber(side, amount, isCrit);
+      if (window.AudioManager) AudioManager.play('hit');
+      if (isCrit || heavy) UI && UI.screenShake(200, isCrit ? 8 : 4);
+      crowd = Math.max(6, Math.min(100, crowd + (heavy ? 14 : 8)));
+      crowdMeterFill.style.width = `${crowd}%`;
+    }, tickMs));
+
+    intervals.push(setInterval(() => {
+      crowd = Math.max(4, crowd - 6);
+      crowdMeterFill.style.width = `${crowd}%`;
+    }, 900));
+
+    timer = setTimeout(() => cleanup(false), durationMs);
   });
 }
 

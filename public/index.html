@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Arena - Start</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/ui.css" />
   </head>
   <body class="index-page">
     <main class="hero-main">
@@ -14,8 +15,8 @@
         <h1>Blood & Glory Arena</h1>
         <p>Enter the roaring colosseum. Recruit your champion, train hard, and survive every match.</p>
         <div class="row">
-          <button id="newRunBtn">New Run</button>
-          <button id="continueBtn">Continue</button>
+          <button class="btn-primary" id="newRunBtn">New Run</button>
+          <button class="btn-secondary" id="continueBtn">Continue</button>
         </div>
         <p id="status" class="muted"></p>
         <p id="error" class="error"></p>
@@ -23,6 +24,8 @@
     </main>
 
     <script src="/api.js"></script>
+    <script src="/audio.js"></script>
+    <script src="/ui.js"></script>
     <script src="/app.js"></script>
     <script>
       App.renderNav();

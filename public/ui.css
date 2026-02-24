@@ -1,0 +1,37 @@
+body { padding-top: 132px; }
+.arena-hud {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1200;
+  backdrop-filter: blur(6px);
+  background: linear-gradient(180deg, rgba(9,9,9,.96), rgba(9,9,9,.72));
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  padding: .5rem .8rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between;
+}
+.hud-main,.hud-stats,.hud-controls{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}
+.hud-hp-wrap{display:flex;gap:.35rem;align-items:center}
+.hud-hp{width:120px;height:10px;background:#3a1c1c;border-radius:999px;overflow:hidden}
+#hudHpBar{height:100%;width:20%;background:linear-gradient(90deg,#c63,#e88)}
+.stat-chip{padding:.2rem .45rem;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(0,0,0,.35);cursor:help}
+button,.btn-primary,.btn-secondary{transition:transform .12s ease, filter .12s ease, box-shadow .12s ease}
+.btn-primary{background:linear-gradient(180deg,#f8502f,#9f220f);box-shadow:0 4px 14px rgba(249,91,50,.4)}
+.btn-secondary{background:linear-gradient(180deg,#7f6d58,#4b3f33);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+button:active:not(:disabled){transform:scale(.96);animation:btn-bounce .22s ease;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+button:disabled{opacity:.35;filter:grayscale(.7)}
+.toast-root{position:fixed;right:14px;bottom:14px;display:flex;flex-direction:column;gap:.5rem;z-index:1300}
+.toast{padding:.55rem .8rem;border-radius:10px;background:rgba(14,14,14,.95);border:1px solid rgba(255,255,255,.2);opacity:0;transform:translateY(10px);transition:all .2s}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{border-color:#7fe08f}.toast.warn{border-color:#f1b56f}.toast.info{border-color:#8eb3ff}
+.fx-vs{display:flex;justify-content:center;gap:1rem;align-items:center;font-size:1.1rem;margin:.35rem 0}
+.crowd-meter{grid-column:1/-1;display:flex;align-items:center;gap:.4rem}
+.crowd-meter>div{height:8px;flex:1;background:rgba(255,255,255,.17);border-radius:999px;overflow:hidden}
+.crowd-meter i{display:block;height:100%;width:8%;background:linear-gradient(90deg,#ffcf6d,#ff6a3c)}
+.dmg-number{position:absolute;top:35%;font-size:1.3rem;font-weight:700;color:#ffe1a0;text-shadow:0 2px 3px #000;animation:float-up .9s ease forwards}
+.dmg-number.left{left:20%}.dmg-number.right{right:20%}.dmg-number.crit{color:#ff6363;font-size:1.6rem}
+.shake{animation:shake .2s linear}
+.recruit-intro{position:absolute;inset:0;background:rgba(0,0,0,.7);display:grid;place-items:center;font-size:1.35rem;font-weight:700;animation:fade-out 1.2s ease forwards}
+.results-panel{margin-top:.8rem;border:1px solid rgba(255,255,255,.2);padding:.8rem;border-radius:12px;background:rgba(0,0,0,.4)}
+@keyframes float-up{from{transform:translateY(0);opacity:1}to{transform:translateY(-38px);opacity:0}}
+@keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(var(--shake-intensity,4px))}50%{transform:translateX(calc(var(--shake-intensity,4px)*-1))}100%{transform:translateX(0)}}
+@keyframes btn-bounce{0%{transform:scale(.96)}60%{transform:scale(1.02)}100%{transform:scale(1)}}
+@keyframes fade-out{0%,70%{opacity:1}100%{opacity:0;visibility:hidden}}
+.reduce-motion *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+@media (max-width:760px){body{padding-top:174px}.arena-hud{padding:.5rem}.hud-hp{width:88px}}
