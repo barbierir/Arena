@@ -33,6 +33,12 @@
         <div class="row">
           <button class="btn-secondary" data-action-btn id="trainBtn" title="Training randomly improves Strength, Agility, or Endurance.">Train</button>
         </div>
+        <section id="trainingLogPanel" class="card inner training-log-panel" aria-live="polite">
+          <h3>Training Log</h3>
+          <ul id="trainingLogList" class="training-log-list">
+            <li class="muted">No training yet.</li>
+          </ul>
+        </section>
         <div class="row">
           <button class="btn-secondary" data-action-btn id="restBtn">Rest</button>
           <button class="btn-primary" data-action-btn id="fightAiBtn">Fight AI</button>
@@ -57,6 +63,61 @@
     <script>
       App.renderNav();
       let run = null;
+      const TRAINING_LOG_LIMIT = 5;
+      const TRAINING_LOG_STATE_VERSION = 1;
+      const gameState = {
+        // Optional save-state field to keep recent Train outcomes across refreshes.
+        trainingLog: []
+      };
+
+      function getGameStateKey() {
+        return `arenaGameState:${Api.getRunId() || 'default'}`;
+      }
+
+      function loadGameState() {
+        let parsed = {};
+        try {
+          parsed = JSON.parse(localStorage.getItem(getGameStateKey()) || '{}') || {};
+        } catch (_error) {
+          parsed = {};
+        }
+
+        gameState.trainingLog = Array.isArray(parsed.trainingLog) ? parsed.trainingLog : [];
+      }
+
+      function persistGameState() {
+        localStorage.setItem(getGameStateKey(), JSON.stringify({
+          v: TRAINING_LOG_STATE_VERSION,
+          trainingLog: gameState.trainingLog
+        }));
+      }
+
+      function appendTrainingLogEntry(entry) {
+        gameState.trainingLog.unshift(entry);
+        gameState.trainingLog = gameState.trainingLog.slice(0, TRAINING_LOG_LIMIT);
+        persistGameState();
+        renderTrainingLog();
+      }
+
+      function nowTimestamp() {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      function renderTrainingLog() {
+        const list = document.getElementById('trainingLogList');
+        if (!list) return;
+        if (!gameState.trainingLog.length) {
+          list.innerHTML = '<li class="muted">No training yet.</li>';
+          return;
+        }
+
+        list.innerHTML = gameState.trainingLog.map((entry, index) => `
+          <li class="training-log-entry ${index === 0 ? 'latest' : ''}">
+            <span class="training-log-meta">${entry.ts} • ${entry.action}</span>
+            <span class="training-log-result">${entry.result}</span>
+          </li>
+        `).join('');
+      }
 
       function ensureSession() {
         if (!Api.getRunId() || !Api.getPlayerId()) {
@@ -123,10 +184,20 @@
           renderRun();
           const statMap = { STR: 'Strength', AGI: 'Agility', END: 'Endurance' };
           const improved = statMap[data.statImproved] || data.statImproved || 'Stat';
+          appendTrainingLogEntry({
+            ts: nowTimestamp(),
+            action: 'Train',
+            result: `+1 ${improved}`
+          });
           setResult(`Training complete. +1 ${improved}. Injury result: ${data.injury}.`);
           UI.showToast(`Training success: +1 ${improved}`, 'success');
           if (data.injury !== 'healthy') UI.showToast(`Injury: ${data.injury}`, 'warn');
         } catch (error) {
+          appendTrainingLogEntry({
+            ts: nowTimestamp(),
+            action: 'Train',
+            result: `Failed: ${error.message}`
+          });
           Api.showError(error);
         } finally {
           App.disableActions(run ? run.turns <= 0 : false);
@@ -230,11 +301,15 @@
       (async function init() {
         if (!ensureSession()) return;
         try {
+          loadGameState();
+          renderTrainingLog();
           await loadRun();
         } catch (error) {
           Api.showError(error);
         }
       })();
+
+      document.addEventListener('game:stateChanged', renderTrainingLog);
     </script>
   </body>
 </html>
