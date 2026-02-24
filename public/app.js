@@ -190,3 +190,31 @@ window.App = {
   showFightPlayback,
   disableActions
 };
+
+
+window.__debugUX = async function __debugUX() {
+  const summary = { ok: true, checks: [], runId: null };
+  try {
+    const run = await (window.Api && Api.getRun ? Api.getRun() : Promise.resolve(null));
+    if (!run) {
+      summary.ok = false;
+      summary.checks.push('No active run in this session.');
+      return summary;
+    }
+    summary.runId = run.id;
+    const checks = [
+      { key: 'turns', ok: Number.isFinite(run.turns) && run.turns >= 0, value: run.turns },
+      { key: 'gold', ok: Number.isFinite(run.gold), value: run.gold },
+      { key: 'wins', ok: Number.isFinite(run.wins), value: run.wins },
+      { key: 'losses', ok: Number.isFinite(run.losses), value: run.losses },
+      { key: 'hasGladiator', ok: Array.isArray(run.roster) && run.roster.length > 0, value: run.roster ? run.roster.length : 0 }
+    ];
+    checks.forEach((c) => {
+      if (!c.ok) summary.ok = false;
+      summary.checks.push(`${c.key}: ${c.ok ? 'ok' : 'invalid'} (${c.value})`);
+    });
+    return summary;
+  } catch (error) {
+    return { ok: false, checks: [`Error: ${error.message}`], runId: summary.runId };
+  }
+};
