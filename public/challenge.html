@@ -32,7 +32,8 @@
         if (!runId || !playerId) return (location.href='/index.html');
         try {
           const data = await Api.request(`/api/challenge/${encodeURIComponent(challengeId)}/accept`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ runId, playerId }) });
-          await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', durationMs:15000 });
+          await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', durationMs:15000, fightResult: { outcome: data.result.winnerRunId === runId ? 'win' : 'loss' } });
+          App.appendLatestAction(App.buildFightLatestAction({ ...data.result, outcome: data.result.winnerRunId === runId ? 'win' : 'loss' }, { runId }), { runId });
           document.getElementById('result').textContent = `Winner run: ${data.result.winnerRunId}`;
           setChallengeView({ challenge: data.challenge });
           if (App.runEnded(data.accepterRun)) location.href = '/summary.html';
