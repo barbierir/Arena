@@ -12,8 +12,9 @@
             <div class="card inner"><strong>Stats</strong><div id="stats">-</div></div>
             <div class="card inner"><strong>Wound</strong><div id="wound">-</div></div>
             <div class="card inner"><strong>Fame</strong><div id="fame">-</div></div>
-            <div class="card inner"><strong>Record</strong><div id="record">-</div></div>
-            <div class="card inner"><strong>Turns</strong><div id="turns">-</div></div>
+            <div class="card inner"><strong>Victories</strong><div id="victories">-</div></div>
+            <div class="card inner"><strong>Defeats</strong><div id="defeats">-</div></div>
+            <div class="card inner"><strong>⏳ Turns remaining</strong><div id="turns">-</div></div>
             <div class="card inner"><strong>Gold</strong><div id="gold">-</div></div>
           </div>
           <section id="trainingLogPanel" class="card inner training-log-panel" aria-live="polite"><h3>Training Log</h3><ul id="trainingLogList" class="training-log-list"><li class="muted">No training yet.</li></ul></section>
@@ -50,7 +51,7 @@
       }
       function renderRun() {
         ['turns','gold','wound','fame'].forEach((k)=>document.getElementById(k).textContent = run[k]);
-        document.getElementById('record').textContent = `${run.wins}W - ${run.losses}L`; document.getElementById('stats').textContent = App.formatStats(run.stats); UI.setRun(run); App.disableActions(run.turns <= 0); updateActionBar(); if (App.runEnded(run)) location.href = '/summary.html';
+        document.getElementById('victories').textContent = `${run.wins} VICTORIES`; document.getElementById('defeats').textContent = `${run.losses} DEFEATS`; document.getElementById('stats').textContent = App.formatStats(run.stats); UI.setRun(run); App.disableActions(run.turns <= 0); updateActionBar(); if (App.runEnded(run)) location.href = '/summary.html';
       }
       async function loadRun() { run = await Api.getRun(); if (!run) { location.href = '/index.html'; return; } renderRun(); }
       function renderResultsPanel(title, changes) { const panel = document.getElementById('resultsPanel'); panel.classList.remove('hidden'); panel.innerHTML = `<h3>${title}</h3><p>${changes}</p><div class="row"><button class="btn--primary-arcade" id="nextFight">FIGHT AGAIN</button><button class="btn-secondary" id="nextTrain">TRAIN</button><button class="btn-secondary" id="nextRest">REST</button></div>`; panel.querySelector('#nextFight').onclick = ()=>document.getElementById('fightAiBtn').click(); panel.querySelector('#nextTrain').onclick = ()=>document.getElementById('trainBtn').click(); panel.querySelector('#nextRest').onclick = ()=>document.getElementById('restBtn').click(); }
