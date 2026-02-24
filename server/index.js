@@ -105,7 +105,7 @@ app.post('/api/run/:runId/recruit/buy', (req, res) => {
     const { playerId, candidateId } = req.body;
     const run = getRunOrThrow(req.params.runId, playerId);
     const result = buyCandidate(run, playerId, candidateId);
-    res.json({ run: result.run });
+    res.json({ run: result.run, candidate: result.candidate });
   } catch (error) {
     sendError(res, error);
   }
