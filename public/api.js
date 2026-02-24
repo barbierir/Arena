@@ -64,6 +64,11 @@ async function getRun() {
   return data.run;
 }
 
+async function listOpenChallenges() {
+  const data = await request('/api/challenges/open');
+  return Array.isArray(data.challenges) ? data.challenges : [];
+}
+
 function showError(error, targetId = 'error') {
   const node = document.getElementById(targetId);
   if (!node) return;
@@ -102,6 +107,7 @@ window.Api = {
   clearRunId,
   request,
   getRun,
+  listOpenChallenges,
   jsonHeaders,
   showError,
   clearError,

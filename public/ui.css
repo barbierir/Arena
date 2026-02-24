@@ -331,3 +331,71 @@ body.index-page.arcade-mode.reduce-motion::before { display: none; }
   .fx-fighter { width: 40%; bottom: 90px; }
   .hp-dock { width: 44%; }
 }
+
+.ranking-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.ranking-score {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-weight: 900;
+  color: #ffd278;
+  text-shadow: 0 0 12px rgba(255, 180, 40, 0.35);
+}
+
+.ranking-gladiator {
+  width: min(100%, 320px);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 210, 120, 0.45);
+}
+
+.challenge-preview {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.challenge-preview__gif {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.challenge-preview__url {
+  word-break: break-all;
+  margin: 0;
+}
+
+.open-challenges-panel {
+  margin-top: 1rem;
+}
+
+.open-challenges-list {
+  display: grid;
+  gap: .6rem;
+}
+
+.open-challenge-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: .6rem .75rem;
+}
+
+@media (max-width: 640px) {
+  .challenge-preview,
+  .open-challenge-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

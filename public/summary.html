@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
-  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Arena - Summary</title><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/ui.css" /></head>
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Arena - Global Ranking</title><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/ui.css" /></head>
   <body class="arcade-mode">
     <header id="hud" class="hud"></header>
     <main class="arcade-main"><div class="panel panel--main"><nav></nav>
-      <h1>Run Summary</h1>
-      <div id="summaryBox" class="card inner">Loading...</div>
+      <h1>Global Ranking</h1>
+      <div id="summaryBox" class="card inner ranking-card">Loading...</div>
       <div class="row"><button class="btn btn--primary" id="continueBtn">CONTINUE</button><button class="btn btn--secondary" id="newRunBtn">START NEW GAME</button></div>
       <p id="error" class="error"></p>
     </div></main>
@@ -13,11 +13,21 @@
     <script src="/api.js"></script><script src="/audio.js"></script><script src="/ui.js"></script><script src="/app.js"></script>
     <script>
       App.renderNav();
-      function computeFinalScore(run) { return (run.wins * 10) + (run.fame * 5) + ((run.stats.STR + run.stats.AGI + run.stats.END) * 2) + Math.floor(run.gold / 2) - (run.seriousWoundsTaken * 5); }
-      function renderSummary(run) { const finalScore = computeFinalScore(run); document.getElementById('summaryBox').innerHTML = `<h2 class="final-score">FINAL SCORE ${finalScore}</h2><p><strong>${run.wins} VICTORIES / ${run.losses} DEFEATS</strong></p><p><strong>⏳ Turns remaining:</strong> ${run.turns}</p><p><strong>Gold:</strong> ${run.gold} | <strong>Fame:</strong> ${run.fame}</p><p><strong>Wounds:</strong> ${run.seriousWoundsTaken}</p><p><strong>Stats:</strong> ${App.formatStats(run.stats)}</p>`; const eligible = run.turns > 0 && run.roster && run.roster.length; document.getElementById('continueBtn').textContent = eligible ? 'FIGHT AGAIN' : 'CONTINUE'; }
+      function computeFinalScore(run) {
+        if (!run || !run.stats) return null;
+        const statsTotal = (Number(run.stats.STR) || 0) + (Number(run.stats.AGI) || 0) + (Number(run.stats.END) || 0);
+        return ((Number(run.wins) || 0) * 10) + ((Number(run.fame) || 0) * 5) + (statsTotal * 2) + Math.floor((Number(run.gold) || 0) / 2) - ((Number(run.seriousWoundsTaken) || 0) * 5);
+      }
+      function renderSummary(run) {
+        const finalScore = computeFinalScore(run);
+        const scoreText = Number.isFinite(finalScore) ? finalScore : '—';
+        document.getElementById('summaryBox').innerHTML = `<div class="ranking-score">Score: ${scoreText}</div><img class="ranking-gladiator" src="/assets/gladiator.gif" alt="Gladiator" />`;
+        const eligible = run && run.turns > 0 && run.roster && run.roster.length;
+        document.getElementById('continueBtn').textContent = eligible ? 'FIGHT AGAIN' : 'CONTINUE';
+      }
       document.getElementById('continueBtn').addEventListener('click', async () => { const run = await Api.getRun(); location.href = run && run.roster && run.roster.length ? '/game.html' : '/recruit.html'; });
       document.getElementById('newRunBtn').addEventListener('click', () => { Api.clearRunId(); location.href = '/index.html'; });
-      (async function init() { try { const run = await Api.getRun(); if (!run) return (document.getElementById('summaryBox').textContent = 'No run found.'); UI.setRun(run); renderSummary(run); } catch (e) { Api.showError(e); } })();
+      (async function init() { try { const run = await Api.getRun(); if (!run) return (document.getElementById('summaryBox').innerHTML = '<div class="ranking-score">Score: —</div><img class="ranking-gladiator" src="/assets/gladiator.gif" alt="Gladiator" />'); UI.setRun(run); renderSummary(run); } catch (e) { document.getElementById('summaryBox').innerHTML = '<div class="ranking-score">Score: —</div><img class="ranking-gladiator" src="/assets/gladiator.gif" alt="Gladiator" />'; Api.showError(e); } })();
     </script>
   </body>
 </html>
