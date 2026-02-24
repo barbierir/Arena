@@ -1,5 +1,89 @@
 body.arcade-mode { padding: 80px 0 80px; }
 body.arcade-mode nav { opacity: .45; transform: scale(.97); }
+
+
+body.index-page.arcade-mode {
+  position: relative;
+  isolation: isolate;
+}
+
+body.index-page.arcade-mode::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 132, 76, 0.12), rgba(255, 132, 76, 0) 55%),
+    radial-gradient(circle at center, rgba(0, 0, 0, 0) 56%, rgba(0, 0, 0, 0.36) 100%);
+}
+
+body.index-page.arcade-mode .hero-card h1 {
+  filter: brightness(1);
+  text-shadow: 0 0 10px rgba(255, 194, 126, 0.45), 0 0 20px rgba(255, 96, 58, 0.28);
+  animation: arcade-title-glow 2.8s ease-in-out infinite;
+}
+
+body.index-page.arcade-mode #startActions {
+  justify-content: center;
+  align-items: center;
+}
+
+body.index-page.arcade-mode .start-new-btn--primary {
+  font-size: 1.08rem;
+  padding: 0.78rem 1.4rem;
+  min-width: 220px;
+  box-shadow: 0 0 16px rgba(255, 94, 60, 0.42), 0 0 26px rgba(255, 135, 82, 0.22);
+  animation: arcade-cta-pulse 2.7s ease-in-out infinite;
+}
+
+body.index-page.arcade-mode .start-new-btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.03);
+}
+
+body.index-page.arcade-mode .start-new-btn.is-click-bounce {
+  animation: arcade-click-bounce 230ms cubic-bezier(.2, .9, .25, 1.15) 1;
+}
+
+.arena-hint {
+  margin: -0.2rem 0 0.45rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  color: rgba(255, 224, 185, 0.9);
+  opacity: 0;
+  animation: arena-hint-fade-in 700ms ease-out 120ms forwards;
+}
+
+@keyframes arcade-title-glow {
+  0%, 100% {
+    filter: brightness(1);
+    text-shadow: 0 0 10px rgba(255, 194, 126, 0.45), 0 0 20px rgba(255, 96, 58, 0.26);
+  }
+  50% {
+    filter: brightness(1.07);
+    text-shadow: 0 0 14px rgba(255, 207, 146, 0.6), 0 0 28px rgba(255, 116, 72, 0.4);
+  }
+}
+
+@keyframes arcade-cta-pulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 94, 60, 0.3), 0 0 20px rgba(255, 135, 82, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(255, 94, 60, 0.45), 0 0 30px rgba(255, 149, 92, 0.28);
+  }
+}
+
+@keyframes arcade-click-bounce {
+  0% { transform: scale(1); }
+  45% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+@keyframes arena-hint-fade-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .hud { position: fixed; top: 0; left: 0; right: 0; z-index: 1300; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; padding: .5rem .8rem; background: linear-gradient(180deg, rgba(5,5,5,.96), rgba(10,10,10,.78)); border-bottom: 1px solid rgba(255,255,255,.22); }
 .hud-col { display: flex; gap: .45rem; align-items: center; }
 .hud-left { justify-content: flex-start; flex-wrap: wrap; }
@@ -89,6 +173,20 @@ body.arcade-mode nav { opacity: .45; transform: scale(.97); }
 @keyframes glow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.2)}}
 @keyframes hud-pulse{0%{transform:scale(1)}50%{transform:scale(1.07)}100%{transform:scale(1)}}
 .reduce-motion *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+.reduce-motion body.index-page.arcade-mode::before,
+body.index-page.arcade-mode.reduce-motion::before { display: none; }
+
+
+@media (prefers-reduced-motion: reduce) {
+  body.index-page.arcade-mode::before { display: none; }
+  body.index-page.arcade-mode .hero-card h1,
+  body.index-page.arcade-mode .start-new-btn--primary,
+  body.index-page.arcade-mode .start-new-btn.is-click-bounce,
+  .arena-hint {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 
 @media (max-width: 780px) {
   body.arcade-mode { padding-top: 116px; }
