@@ -1,315 +1,67 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Arena - Game</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/ui.css" />
-  </head>
-  <body class="arena-page">
-    <main>
-      <nav></nav>
-
-      <section class="card panel">
-        <h1>Game</h1>
-        <div class="game-layout">
-          <div class="card inner gladiator-card" aria-label="Gladiator card">
-            <img
-              id="gladiatorGif"
-              src="/gifs/gladiator-idle.gif"
-              alt="Gladiator idle animation"
-              class="gladiator-gif"
-            />
-            <div id="gladiatorFallback" class="gladiator-fallback hidden">(Gladiator animation placeholder)</div>
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Arena - Game</title><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/ui.css" /></head>
+  <body class="arena-page arcade-mode">
+    <header id="hud" class="hud"></header>
+    <main class="arcade-main"><div class="panel panel--main"><nav></nav>
+      <h1>Arcade Hub</h1>
+      <div class="game-layout arcade-grid">
+        <div class="card inner gladiator-card"><img id="gladiatorGif" src="/assets/gladiator.gif" alt="Gladiator animation" class="gladiator-gif" /><div id="gladiatorFallback" class="gladiator-fallback hidden">Gladiator enters soon.</div></div>
+        <div>
+          <div class="stat-grid compact-stats">
+            <div class="card inner"><strong>Stats</strong><div id="stats">-</div></div>
+            <div class="card inner"><strong>Wound</strong><div id="wound">-</div></div>
+            <div class="card inner"><strong>Fame</strong><div id="fame">-</div></div>
+            <div class="card inner"><strong>Record</strong><div id="record">-</div></div>
+            <div class="card inner"><strong>Turns</strong><div id="turns">-</div></div>
+            <div class="card inner"><strong>Gold</strong><div id="gold">-</div></div>
           </div>
-          <div>
-            <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span> | <strong>Wound:</strong> <span id="wound">-</span></p>
-            <p><strong>Record:</strong> <span id="record">-</span> | <strong>Fame:</strong> <span id="fame">-</span></p>
-            <p><strong>Stats:</strong> <span id="stats">-</span></p>
-          </div>
+          <section id="trainingLogPanel" class="card inner training-log-panel" aria-live="polite"><h3>Training Log</h3><ul id="trainingLogList" class="training-log-list"><li class="muted">No training yet.</li></ul></section>
         </div>
+      </div>
+      <p id="lastResult" class="muted">No recent action.</p><div id="resultsPanel" class="results-panel hidden"></div>
+      <div id="shareBox" class="card inner hidden"><p><strong>Share Link</strong></p><input id="shareLink" readonly /><button id="copyShareBtn">Copy</button></div>
+      <p id="error" class="error"></p>
+      <button class="hidden" data-action-btn id="trainBtn">Train</button><button class="hidden" data-action-btn id="restBtn">Rest</button><button class="hidden" data-action-btn id="fightAiBtn">Fight AI</button><button class="hidden" data-action-btn id="postChallengeBtn">Post Challenge</button>
+    </div></main>
+    <footer id="actionBar" class="action-bar"></footer>
 
-        <div class="row">
-          <button class="btn-secondary" data-action-btn id="trainBtn" title="Training randomly improves Strength, Agility, or Endurance.">Train</button>
-        </div>
-        <section id="trainingLogPanel" class="card inner training-log-panel" aria-live="polite">
-          <h3>Training Log</h3>
-          <ul id="trainingLogList" class="training-log-list">
-            <li class="muted">No training yet.</li>
-          </ul>
-        </section>
-        <div class="row">
-          <button class="btn-secondary" data-action-btn id="restBtn">Rest</button>
-          <button class="btn-primary" data-action-btn id="fightAiBtn">Fight AI</button>
-          <button class="btn-secondary" data-action-btn id="postChallengeBtn">Post Challenge</button>
-        </div>
-
-        <p id="lastResult" class="muted">No recent action.</p>
-        <div id="resultsPanel" class="results-panel hidden"></div>
-        <div id="shareBox" class="card inner hidden">
-          <p><strong>Share Link</strong></p>
-          <input id="shareLink" readonly />
-          <button id="copyShareBtn">Copy</button>
-        </div>
-        <p id="error" class="error"></p>
-      </section>
-    </main>
-
-    <script src="/api.js"></script>
-    <script src="/audio.js"></script>
-    <script src="/ui.js"></script>
-    <script src="/app.js"></script>
+    <script src="/api.js"></script><script src="/audio.js"></script><script src="/ui.js"></script><script src="/app.js"></script>
     <script>
       App.renderNav();
-      let run = null;
-      const TRAINING_LOG_LIMIT = 5;
-      const TRAINING_LOG_STATE_VERSION = 1;
-      const gameState = {
-        // Optional save-state field to keep recent Train outcomes across refreshes.
-        trainingLog: []
-      };
-
-      function getGameStateKey() {
-        return `arenaGameState:${Api.getRunId() || 'default'}`;
+      let run = null; const TRAINING_LOG_LIMIT = 5; const gameState = { trainingLog: [] };
+      function getGameStateKey() { return `arenaGameState:${Api.getRunId() || 'default'}`; }
+      function loadGameState() { try { const parsed = JSON.parse(localStorage.getItem(getGameStateKey()) || '{}') || {}; gameState.trainingLog = Array.isArray(parsed.trainingLog) ? parsed.trainingLog : []; } catch { gameState.trainingLog = []; } }
+      function persistGameState() { localStorage.setItem(getGameStateKey(), JSON.stringify({ trainingLog: gameState.trainingLog })); }
+      function appendTrainingLogEntry(entry) { gameState.trainingLog.unshift(entry); gameState.trainingLog = gameState.trainingLog.slice(0, TRAINING_LOG_LIMIT); persistGameState(); renderTrainingLog(); }
+      function nowTimestamp() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+      function renderTrainingLog() { const list = document.getElementById('trainingLogList'); list.innerHTML = gameState.trainingLog.length ? gameState.trainingLog.map((e)=>`<li class="training-log-entry"><span class="training-log-meta">${e.ts} • ${e.action}</span><span class="training-log-result">${e.result}</span></li>`).join('') : '<li class="muted">No training yet.</li>'; }
+      function ensureSession() { if (!Api.getRunId() || !Api.getPlayerId()) { location.href = '/index.html'; return false; } return true; }
+      function setResult(text) { document.getElementById('lastResult').textContent = text; }
+      function updateActionBar() {
+        const hasGladiator = !!(run?.roster && run.roster.length);
+        const lowHp = run?.wound === 'serious';
+        UI.setActionBar([
+          { label: hasGladiator ? 'FIGHT AI' : 'RECRUIT', target: hasGladiator ? '#fightAiBtn' : null, href: hasGladiator ? null : '/recruit.html', className: `btn--primary-arcade ${(!lowHp && hasGladiator) ? 'is-recommended' : ''}`, disabled: !hasGladiator || run.turns <= 0 },
+          { label: 'TRAIN', target: '#trainBtn', className: 'btn-secondary' },
+          { label: 'REST', target: '#restBtn', className: `btn-secondary ${lowHp ? 'is-recommended' : ''}` },
+          { label: 'POST CHALLENGE', target: '#postChallengeBtn', className: 'btn-tertiary' }
+        ]);
       }
-
-      function loadGameState() {
-        let parsed = {};
-        try {
-          parsed = JSON.parse(localStorage.getItem(getGameStateKey()) || '{}') || {};
-        } catch (_error) {
-          parsed = {};
-        }
-
-        gameState.trainingLog = Array.isArray(parsed.trainingLog) ? parsed.trainingLog : [];
-      }
-
-      function persistGameState() {
-        localStorage.setItem(getGameStateKey(), JSON.stringify({
-          v: TRAINING_LOG_STATE_VERSION,
-          trainingLog: gameState.trainingLog
-        }));
-      }
-
-      function appendTrainingLogEntry(entry) {
-        gameState.trainingLog.unshift(entry);
-        gameState.trainingLog = gameState.trainingLog.slice(0, TRAINING_LOG_LIMIT);
-        persistGameState();
-        renderTrainingLog();
-      }
-
-      function nowTimestamp() {
-        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      }
-
-      function renderTrainingLog() {
-        const list = document.getElementById('trainingLogList');
-        if (!list) return;
-        if (!gameState.trainingLog.length) {
-          list.innerHTML = '<li class="muted">No training yet.</li>';
-          return;
-        }
-
-        list.innerHTML = gameState.trainingLog.map((entry, index) => `
-          <li class="training-log-entry ${index === 0 ? 'latest' : ''}">
-            <span class="training-log-meta">${entry.ts} • ${entry.action}</span>
-            <span class="training-log-result">${entry.result}</span>
-          </li>
-        `).join('');
-      }
-
-      function ensureSession() {
-        if (!Api.getRunId() || !Api.getPlayerId()) {
-          location.href = '/index.html';
-          return false;
-        }
-        return true;
-      }
-
       function renderRun() {
-        document.getElementById('turns').textContent = run.turns;
-        document.getElementById('gold').textContent = run.gold;
-        document.getElementById('wound').textContent = run.wound;
-        document.getElementById('record').textContent = `${run.wins}W - ${run.losses}L`;
-        document.getElementById('fame').textContent = run.fame;
-        document.getElementById('stats').textContent = App.formatStats(run.stats);
-        UI.setRun(run);
-        App.disableActions(run.turns <= 0);
-
-        if (App.runEnded(run)) {
-          location.href = '/summary.html';
-        }
+        ['turns','gold','wound','fame'].forEach((k)=>document.getElementById(k).textContent = run[k]);
+        document.getElementById('record').textContent = `${run.wins}W - ${run.losses}L`; document.getElementById('stats').textContent = App.formatStats(run.stats); UI.setRun(run); App.disableActions(run.turns <= 0); updateActionBar(); if (App.runEnded(run)) location.href = '/summary.html';
       }
-
-      async function loadRun() {
-        run = await Api.getRun();
-        if (!run) {
-          location.href = '/index.html';
-          return;
-        }
-        renderRun();
-      }
-
-      function setResult(text) {
-        document.getElementById('lastResult').textContent = text;
-      }
-
-      function renderResultsPanel(title, changes, nextActions = true) {
-        const panel = document.getElementById('resultsPanel');
-        panel.classList.remove('hidden');
-        panel.innerHTML = `
-          <h3>${title}</h3>
-          <p>${changes}</p>
-          ${nextActions ? `<div class="row"><button class="btn-secondary" id="nextTrain">Train</button><button class="btn-secondary" id="nextRest">Rest</button><button class="btn-primary" id="nextFight">Fight Again</button><button class="btn-secondary" id="nextRecruit">Recruit</button></div>` : ''}
-        `;
-        const bind = (id, cb) => { const el = document.getElementById(id); if (el) el.onclick = cb; };
-        bind('nextTrain', () => document.getElementById('trainBtn').click());
-        bind('nextRest', () => document.getElementById('restBtn').click());
-        bind('nextFight', () => document.getElementById('fightAiBtn').click());
-        bind('nextRecruit', () => location.href = '/recruit.html');
-      }
-
-      async function doTrain() {
-        Api.clearError();
-        App.disableActions(true);
-        try {
-          await App.showActionOverlay({ title: 'Training...', gifPath: '/assets/train.gif', durationMs: 3000 });
-          const data = await Api.request(`/api/run/${Api.getRunId()}/action/train`, {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId() })
-          });
-          run = data.run;
-          renderRun();
-          const statMap = { STR: 'Strength', AGI: 'Agility', END: 'Endurance' };
-          const improved = statMap[data.statImproved] || data.statImproved || 'Stat';
-          appendTrainingLogEntry({
-            ts: nowTimestamp(),
-            action: 'Train',
-            result: `+1 ${improved}`
-          });
-          setResult(`Training complete. +1 ${improved}. Injury result: ${data.injury}.`);
-          UI.showToast(`Training success: +1 ${improved}`, 'success');
-          if (data.injury !== 'healthy') UI.showToast(`Injury: ${data.injury}`, 'warn');
-        } catch (error) {
-          appendTrainingLogEntry({
-            ts: nowTimestamp(),
-            action: 'Train',
-            result: `Failed: ${error.message}`
-          });
-          Api.showError(error);
-        } finally {
-          App.disableActions(run ? run.turns <= 0 : false);
-        }
-      }
-
-      document.getElementById('trainBtn').addEventListener('click', () => doTrain());
-
-      document.getElementById('gladiatorGif').addEventListener('error', () => {
-        document.getElementById('gladiatorGif').classList.add('hidden');
-        document.getElementById('gladiatorFallback').classList.remove('hidden');
-      });
-
-      document.getElementById('restBtn').addEventListener('click', async () => {
-        Api.clearError();
-        App.disableActions(true);
-        try {
-          await App.showActionOverlay({ title: 'Resting...', gifPath: '/assets/rest.gif', durationMs: 3000 });
-          const data = await Api.request(`/api/run/${Api.getRunId()}/action/rest`, {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId() })
-          });
-          run = data.run;
-          renderRun();
-          setResult('Rest completed.');
-          UI.showToast('Rest complete', 'success');
-        } catch (error) {
-          Api.showError(error);
-        } finally {
-          App.disableActions(run ? run.turns <= 0 : false);
-        }
-      });
-
-      document.getElementById('fightAiBtn').addEventListener('click', async () => {
-        Api.clearError();
-        App.disableActions(true);
-        try {
-          const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty: 'normal' })
-          });
-          await App.showFightPlayback({
-            leftGif: '/assets/fight-left.gif',
-            rightGif: '/assets/fight-right.gif',
-            durationMs: 30000,
-            leftName: localStorage.getItem('arenaGladiatorName') || 'You',
-            rightName: 'Arena AI',
-            onSkip: () => setResult('Combat playback skipped.')
-          });
-
-          run = data.run;
-          renderRun();
-          setResult(`AI Fight: ${data.fight.result.toUpperCase()} (injury: ${data.fight.injury}).`);
-          const status = data.fight.result === 'win' ? 'VICTORY' : 'DEFEAT';
-          const gold = data.fight.result === 'win' ? '+20 Gold' : 'No gold reward';
-          renderResultsPanel(status, `${gold} • Injury: ${data.fight.injury}`);
-          if (data.fight.result === 'win') {
-            UI.showToast('+20 Gold', 'success');
-            AudioManager.play('coin');
-          }
-        } catch (error) {
-          Api.showError(error);
-        } finally {
-          App.disableActions(run ? run.turns <= 0 : false);
-        }
-      });
-
-      document.getElementById('postChallengeBtn').addEventListener('click', async () => {
-        Api.clearError();
-        try {
-          const data = await Api.request(`/api/run/${Api.getRunId()}/challenge/post`, {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId() })
-          });
-          run = data.run;
-          renderRun();
-          const url = `${location.origin}/challenge/${encodeURIComponent(data.challengeId)}`;
-          document.getElementById('shareLink').value = url;
-          document.getElementById('shareBox').classList.remove('hidden');
-          setResult('Challenge posted. Share the link.');
-          UI.showToast('Challenge posted', 'info');
-        } catch (error) {
-          Api.showError(error);
-        }
-      });
-
-      document.getElementById('copyShareBtn').addEventListener('click', async () => {
-        const link = document.getElementById('shareLink').value;
-        try {
-          await Api.copyText(link);
-          setResult('Share link copied.');
-          UI.showToast('Copied', 'success');
-        } catch (_error) {
-          setResult('Could not copy link.');
-        }
-      });
-
-      (async function init() {
-        if (!ensureSession()) return;
-        try {
-          loadGameState();
-          renderTrainingLog();
-          await loadRun();
-        } catch (error) {
-          Api.showError(error);
-        }
-      })();
-
-      document.addEventListener('game:stateChanged', renderTrainingLog);
+      async function loadRun() { run = await Api.getRun(); if (!run) { location.href = '/index.html'; return; } renderRun(); }
+      function renderResultsPanel(title, changes) { const panel = document.getElementById('resultsPanel'); panel.classList.remove('hidden'); panel.innerHTML = `<h3>${title}</h3><p>${changes}</p><div class="row"><button class="btn--primary-arcade" id="nextFight">FIGHT AGAIN</button><button class="btn-secondary" id="nextTrain">TRAIN</button><button class="btn-secondary" id="nextRest">REST</button></div>`; panel.querySelector('#nextFight').onclick = ()=>document.getElementById('fightAiBtn').click(); panel.querySelector('#nextTrain').onclick = ()=>document.getElementById('trainBtn').click(); panel.querySelector('#nextRest').onclick = ()=>document.getElementById('restBtn').click(); }
+      async function doTrain(){ Api.clearError(); App.disableActions(true); try { await App.showActionOverlay({ title:'Training...', gifPath:'/assets/train.gif', durationMs: 1800 }); const data = await Api.request(`/api/run/${Api.getRunId()}/action/train`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); const m={STR:'Strength',AGI:'Agility',END:'Endurance'}; const improved=m[data.statImproved]||'Stat'; appendTrainingLogEntry({ ts: nowTimestamp(), action:'Train', result:`+1 ${improved}`}); setResult(`Training complete. +1 ${improved}.`);} catch (e){Api.showError(e);} finally { App.disableActions(run ? run.turns<=0 : false);} }
+      document.getElementById('trainBtn').addEventListener('click', doTrain);
+      document.getElementById('gladiatorGif').addEventListener('error', () => { document.getElementById('gladiatorGif').classList.add('hidden'); document.getElementById('gladiatorFallback').classList.remove('hidden'); });
+      document.getElementById('restBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { await App.showActionOverlay({ title:'Resting...', gifPath:'/assets/rest.gif', durationMs: 1500 }); const data = await Api.request(`/api/run/${Api.getRunId()}/action/rest`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); setResult('Rest completed.'); } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
+      document.getElementById('fightAiBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty:'normal' }) }); await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', leftName: localStorage.getItem('arenaGladiatorName') || 'You', rightName:'Arena AI', durationMs: 18000, onSkip: ()=>setResult('Combat playback skipped.') }); run = data.run; renderRun(); const status = data.fight.result === 'win' ? 'VICTORY' : 'DEFEAT'; renderResultsPanel(status, `Injury: ${data.fight.injury}`); } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
+      document.getElementById('postChallengeBtn').addEventListener('click', async () => { try { const data = await Api.request(`/api/run/${Api.getRunId()}/challenge/post`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); document.getElementById('shareLink').value = `${location.origin}/challenge/${encodeURIComponent(data.challengeId)}`; document.getElementById('shareBox').classList.remove('hidden'); } catch (e) { Api.showError(e); } });
+      document.getElementById('copyShareBtn').addEventListener('click', async () => { try { await Api.copyText(document.getElementById('shareLink').value); } catch {} });
+      (async function init(){ if (!ensureSession()) return; loadGameState(); renderTrainingLog(); await loadRun(); if (localStorage.getItem('arenaInstantFight') === 'true') { localStorage.removeItem('arenaInstantFight'); setTimeout(() => document.getElementById('fightAiBtn').click(), 150); } })();
     </script>
   </body>
 </html>

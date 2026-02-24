@@ -1,220 +1,52 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Arena - Recruit</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/ui.css" />
-  </head>
-  <body class="arena-page">
-    <main>
-      <nav></nav>
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Arena - Recruit</title><link rel="stylesheet" href="/styles.css" /><link rel="stylesheet" href="/ui.css" /></head>
+  <body class="arena-page arcade-mode">
+    <header id="hud" class="hud"></header>
+    <main class="arcade-main"><div class="panel panel--main"><nav></nav>
+      <h1>Recruit Gladiator</h1>
+      <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span></p>
+      <div class="recruit-layout arcade-grid">
+        <div class="recruit-gif-wrap"><img id="recruitGif" src="/assets/recruit-1.gif" alt="Recruit animation" /></div>
+        <div id="candidateCard" class="card inner candidate-card">No candidate yet.</div>
+      </div>
+      <p id="error" class="error"></p>
+    </div></main>
+    <footer id="actionBar" class="action-bar"></footer>
 
-      <section class="card panel">
-        <h1>Recruit Gladiator</h1>
-        <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span></p>
-        <div class="row">
-          <button class="btn-primary" id="generateBtn">Generate</button>
-          <button class="btn-secondary" id="skipBtn">Skip (cost 1 turn)</button>
-          <button class="btn-primary" id="buyBtn" disabled>Buy</button>
-        </div>
-
-        <div class="recruit-layout">
-          <div class="recruit-gif-wrap">
-            <img id="recruitGif" src="/assets/recruit-1.gif" alt="Recruit animation" />
-          </div>
-          <div id="candidateCard" class="card inner">No candidate yet.</div>
-        </div>
-
-        <p id="error" class="error"></p>
-      </section>
-    </main>
-
-    <script src="/api.js"></script>
-    <script src="/audio.js"></script>
-    <script src="/ui.js"></script>
-    <script src="/app.js"></script>
+    <script src="/api.js"></script><script src="/audio.js"></script><script src="/ui.js"></script><script src="/app.js"></script>
     <script>
       App.renderNav();
-      let run = null;
-      let currentCandidate = null;
-      let buyInFlight = false;
+      let run = null; let currentCandidate = null; let buyInFlight = false;
+      UI.setActionBar([
+        { label: 'GENERATE', target: '#generateBtn', className: 'btn--primary-arcade' },
+        { label: 'BUY', target: '#buyBtn', className: 'btn--primary-arcade', id: 'arcadeBuyBtn', disabled: true },
+        { label: 'SKIP', target: '#skipBtn', className: 'btn-secondary' }
+      ]);
 
-      function ensureSession() {
-        if (!Api.getRunId() || !Api.getPlayerId()) {
-          location.href = '/index.html';
-          return false;
-        }
-        return true;
-      }
-
-      function swapRecruitGif() {
-        document.getElementById('recruitGif').src = App.pickRandomRecruitGif();
-      }
-
-      function setActionDisabled(disabled) {
-        document.getElementById('generateBtn').disabled = disabled;
-        document.getElementById('skipBtn').disabled = disabled;
-        if (disabled) document.getElementById('buyBtn').disabled = true;
-      }
-
-      function renderRun() {
-        document.getElementById('turns').textContent = run.turns;
-        document.getElementById('gold').textContent = run.gold;
-        UI.setRun(run);
-        setActionDisabled(run.turns <= 0);
-        if (App.runEnded(run)) {
-          location.href = '/summary.html';
-        }
-      }
-
+      function ensureSession() { if (!Api.getRunId() || !Api.getPlayerId()) { location.href = '/index.html'; return false; } return true; }
+      function swapRecruitGif() { document.getElementById('recruitGif').src = App.pickRandomRecruitGif(); }
+      function setActionDisabled(disabled) { ['generateBtn','skipBtn'].forEach((id)=>document.getElementById(id).disabled = disabled); if (disabled) document.getElementById('buyBtn').disabled = true; syncActionBar(); }
+      function syncActionBar(){ const buyArcade=document.getElementById('arcadeBuyBtn'); if (buyArcade) buyArcade.disabled = document.getElementById('buyBtn').disabled; }
+      function renderRun() { document.getElementById('turns').textContent = run.turns; document.getElementById('gold').textContent = run.gold; UI.setRun(run); setActionDisabled(run.turns <= 0); if (App.runEnded(run)) location.href = '/summary.html'; }
       function renderCandidate() {
-        const card = document.getElementById('candidateCard');
-        const buyBtn = document.getElementById('buyBtn');
-        if (!currentCandidate) {
-          card.textContent = 'No candidate yet.';
-          buyBtn.disabled = true;
-          return;
-        }
-
-        card.innerHTML = `
-          <h3>${currentCandidate.name}</h3>
-          <p>${App.formatStats(currentCandidate.stats)}</p>
-          <p><strong>Trait:</strong> ${UI.traitFromStats(currentCandidate.stats)}</p>
-          <p><strong>Price:</strong> ${currentCandidate.price}</p>
-          <p class="muted">Rating ${currentCandidate.rating.toFixed(1)}</p>
-        `;
+        const card = document.getElementById('candidateCard'); const buyBtn = document.getElementById('buyBtn');
+        if (!currentCandidate) { card.textContent = 'No candidate yet.'; buyBtn.disabled = true; syncActionBar(); return; }
         const s = currentCandidate.stats;
-        const reduced = UI.getSettings().reduceMotion;
-        UI.animateCount(card.querySelector('h3'), 0, 0, 0, true);
-        card.querySelector('p').innerHTML = `STR <span id="strN">0</span> / AGI <span id="agiN">0</span> / END <span id="endN">0</span> / Talent <span id="talN">0</span>`;
-        UI.animateCount(card.querySelector('#strN'), 0, s.STR, 700, reduced);
-        UI.animateCount(card.querySelector('#agiN'), 0, s.AGI, 700, reduced);
-        UI.animateCount(card.querySelector('#endN'), 0, s.END, 700, reduced);
-        UI.animateCount(card.querySelector('#talN'), 0, s.Talent, 700, reduced);
-        buyBtn.disabled = buyInFlight;
+        card.innerHTML = `<h3>${currentCandidate.name}</h3><p>STR <span id="strN">0</span> / AGI <span id="agiN">0</span> / END <span id="endN">0</span> / Talent <span id="talN">0</span></p><p><strong>Trait:</strong> <span class="trait-pill">${UI.traitFromStats(s)}</span></p><p><strong>Price:</strong> ${currentCandidate.price} | <strong>Rating:</strong> ${currentCandidate.rating.toFixed(1)}</p>`;
+        ['STR','AGI','END','Talent'].forEach((k,i)=>UI.animateCount(card.querySelector(['#strN','#agiN','#endN','#talN'][i]),0,s[k],600));
+        buyBtn.disabled = buyInFlight; syncActionBar();
       }
+      async function refreshRun() { run = await Api.getRun(); if (!run) { location.href = '/index.html'; return; } renderRun(); }
+      function announce(msg){ const o=document.createElement('div'); o.className='recruit-intro'; o.textContent=msg; document.querySelector('.recruit-gif-wrap').appendChild(o); setTimeout(()=>o.remove(),1000); }
 
-      async function refreshRun() {
-        run = await Api.getRun();
-        if (!run) {
-          location.href = '/index.html';
-          return;
-        }
-        renderRun();
-      }
+      document.body.insertAdjacentHTML('beforeend','<button id="generateBtn" class="hidden"></button><button id="skipBtn" class="hidden"></button><button id="buyBtn" class="hidden" disabled></button>');
 
-      document.getElementById('generateBtn').addEventListener('click', async () => {
-        Api.clearError();
-        swapRecruitGif();
-        try {
-          const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/generate`, {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId() })
-          });
-          currentCandidate = data.candidate;
-          renderCandidate();
-          await refreshRun();
-          UI.showToast('New Challenger arrived!', 'success');
-        } catch (error) {
-          Api.showError(error);
-        }
-      });
+      document.getElementById('generateBtn').addEventListener('click', async () => { Api.clearError(); swapRecruitGif(); announce('NEW CHALLENGER!'); try { const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/generate`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); currentCandidate = data.candidate; renderCandidate(); await refreshRun(); } catch (error) { Api.showError(error);} });
+      document.getElementById('skipBtn').addEventListener('click', async () => { Api.clearError(); swapRecruitGif(); try { const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/skip`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; currentCandidate = data.candidate; renderRun(); renderCandidate(); } catch (error) { Api.showError(error);} });
+      document.getElementById('buyBtn').addEventListener('click', async () => { Api.clearError(); if (buyInFlight || !currentCandidate) return; buyInFlight = true; document.getElementById('buyBtn').disabled = true; syncActionBar(); try { const c = currentCandidate; const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/buy`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId(), candidateId: c.id }) }); run = data.run; currentCandidate = null; localStorage.setItem('arenaGladiatorName', (data.candidate || c).name || 'Gladiator'); renderRun(); renderCandidate(); announce('RECRUITED!'); setTimeout(()=>{ location.href = '/game.html'; }, 600);} catch (error) { buyInFlight = false; renderCandidate(); Api.showError(error);} });
 
-      document.getElementById('skipBtn').addEventListener('click', async () => {
-        Api.clearError();
-        swapRecruitGif();
-        try {
-          const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/skip`, {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId() })
-          });
-          run = data.run;
-          currentCandidate = data.candidate;
-          renderRun();
-          renderCandidate();
-        } catch (error) {
-          Api.showError(error);
-        }
-      });
-
-      document.getElementById('buyBtn').addEventListener('click', async () => {
-        Api.clearError();
-        if (buyInFlight || !currentCandidate) return;
-        buyInFlight = true;
-        const buyBtn = document.getElementById('buyBtn');
-        buyBtn.disabled = true;
-        try {
-          const candidateToBuy = currentCandidate;
-          const data = await Api.request(`/api/run/${Api.getRunId()}/recruit/buy`, {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId(), candidateId: candidateToBuy.id })
-          });
-          run = data.run;
-          currentCandidate = null;
-          const recruited = data.candidate || candidateToBuy;
-          if (recruited && recruited.name) {
-            localStorage.setItem('arenaGladiatorName', recruited.name);
-          }
-          renderRun();
-          renderCandidate();
-          UI.showToast('Gladiator recruited', 'success');
-          location.href = '/game.html';
-        } catch (error) {
-          buyInFlight = false;
-          renderCandidate();
-          Api.showError(error);
-        }
-      });
-
-
-      window.__debugRecruit = async function __debugRecruit(attempts = 20) {
-        const summary = { attempts, success: 0, failures: 0, errors: [] };
-
-        for (let i = 0; i < attempts; i += 1) {
-          try {
-            const generated = await Api.request(`/api/run/${Api.getRunId()}/recruit/generate`, {
-              method: 'POST',
-              headers: Api.jsonHeaders(),
-              body: JSON.stringify({ playerId: Api.getPlayerId() })
-            });
-            const candidate = generated.candidate;
-            await Api.request(`/api/run/${Api.getRunId()}/recruit/buy`, {
-              method: 'POST',
-              headers: Api.jsonHeaders(),
-              body: JSON.stringify({ playerId: Api.getPlayerId(), candidateId: candidate.id })
-            });
-            summary.success += 1;
-          } catch (error) {
-            summary.failures += 1;
-            summary.errors.push(error.message);
-          }
-        }
-
-        console.table(summary);
-        return summary;
-      };
-
-      (async function init() {
-        if (!ensureSession()) return;
-        try {
-          await refreshRun();
-          swapRecruitGif();
-          const wrap = document.querySelector('.recruit-gif-wrap');
-          const intro = document.createElement('div');
-          intro.className = 'recruit-intro';
-          intro.textContent = 'New Challenger';
-          wrap.style.position = 'relative';
-          wrap.appendChild(intro);
-          setTimeout(() => intro.remove(), 1400);
-        } catch (error) {
-          Api.showError(error);
-        }
-      })();
+      (async function init(){ if (!ensureSession()) return; await refreshRun(); swapRecruitGif(); })();
     </script>
   </body>
 </html>
