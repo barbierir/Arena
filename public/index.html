@@ -7,21 +7,21 @@
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/ui.css" />
   </head>
-  <body class="index-page">
-    <main class="hero-main">
-      <nav></nav>
-
-      <section class="card hero-card">
+  <body class="index-page arcade-mode">
+    <header id="hud" class="hud"></header>
+    <main class="arcade-main">
+      <div class="panel panel--main hero-card">
+        <nav></nav>
         <h1>Blood & Glory Arena</h1>
-        <p>Enter the roaring colosseum. Recruit your champion, train hard, and survive every match.</p>
-        <div class="row">
-          <button class="btn-primary" id="newRunBtn">New Run</button>
-          <button class="btn-secondary" id="continueBtn">Continue</button>
-        </div>
+        <p>Fast run. Fast fights. Keep your streak alive.</p>
+        <div class="row" id="startActions"></div>
         <p id="status" class="muted"></p>
+        <button id="detailsToggle" class="btn-secondary hidden">Details</button>
+        <p id="savedId" class="muted hidden"></p>
         <p id="error" class="error"></p>
-      </section>
+      </div>
     </main>
+    <footer id="actionBar" class="action-bar"></footer>
 
     <script src="/api.js"></script>
     <script src="/audio.js"></script>
@@ -30,58 +30,62 @@
     <script>
       App.renderNav();
       const statusEl = document.getElementById('status');
-      const continueBtn = document.getElementById('continueBtn');
+      const startActions = document.getElementById('startActions');
+      const detailsToggle = document.getElementById('detailsToggle');
+      const savedId = document.getElementById('savedId');
 
-      async function checkContinue() {
-        Api.clearError();
-        const runId = Api.getRunId();
-        const playerId = Api.getPlayerId();
-
-        if (!runId || !playerId) {
-          continueBtn.disabled = true;
-          statusEl.textContent = 'No saved run found.';
-          return;
-        }
-
-        try {
-          const run = await Api.getRun();
-          continueBtn.disabled = false;
-          statusEl.textContent = run ? `Saved run: ${run.id}` : 'Saved run missing.';
-        } catch (error) {
-          continueBtn.disabled = true;
-          Api.showError(error);
-        }
+      function renderButtons(run) {
+        const hasRun = !!run;
+        const hasGladiator = hasRun && run.roster && run.roster.length > 0;
+        startActions.innerHTML = `
+          <button class="btn--primary-arcade" id="continueBtn" ${hasRun ? '' : 'disabled'}>Continue</button>
+          <button class="btn-secondary" id="newRunBtn">New Run</button>
+          ${hasGladiator ? '<button class="btn-primary-alt" id="instantFightBtn">Instant Fight</button>' : ''}
+        `;
+        document.getElementById('continueBtn')?.addEventListener('click', () => {
+          location.href = hasGladiator ? '/game.html' : '/recruit.html';
+        });
+        document.getElementById('instantFightBtn')?.addEventListener('click', () => {
+          localStorage.setItem('arenaInstantFight', 'true');
+          location.href = '/game.html';
+        });
+        document.getElementById('newRunBtn').addEventListener('click', async () => {
+          Api.clearError();
+          try {
+            const data = await Api.request('/api/run/new', { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({}) });
+            Api.setPlayerId(data.playerId);
+            Api.setRunId(data.runId);
+            location.href = '/recruit.html';
+          } catch (error) { Api.showError(error); }
+        });
       }
 
-      document.getElementById('newRunBtn').addEventListener('click', async () => {
-        Api.clearError();
-        try {
-          const data = await Api.request('/api/run/new', {
-            method: 'POST',
-            headers: Api.jsonHeaders(),
-            body: JSON.stringify({})
-          });
+      detailsToggle.addEventListener('click', () => savedId.classList.toggle('hidden'));
 
-          Api.setPlayerId(data.playerId);
-          Api.setRunId(data.runId);
-          location.href = '/recruit.html';
-        } catch (error) {
-          Api.showError(error);
+      (async function checkContinue() {
+        const runId = Api.getRunId();
+        const playerId = Api.getPlayerId();
+        if (!runId || !playerId) {
+          statusEl.textContent = 'No saved run found.';
+          renderButtons(null);
+          return;
         }
-      });
-
-      continueBtn.addEventListener('click', async () => {
-        Api.clearError();
         try {
           const run = await Api.getRun();
-          if (!run) throw new Error('Run not found');
-          location.href = run.roster && run.roster.length > 0 ? '/game.html' : '/recruit.html';
+          if (run) {
+            statusEl.textContent = 'Saved run found';
+            detailsToggle.classList.remove('hidden');
+            savedId.classList.add('hidden');
+            savedId.textContent = run.id;
+          } else {
+            statusEl.textContent = 'Saved run missing.';
+          }
+          renderButtons(run);
         } catch (error) {
           Api.showError(error);
+          renderButtons(null);
         }
-      });
-
-      checkContinue();
+      })();
     </script>
   </body>
 </html>

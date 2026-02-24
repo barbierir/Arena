@@ -30,173 +30,140 @@ function pickRandomRecruitGif() {
 function ensureOverlay() {
   let overlay = document.getElementById('fxOverlay');
   if (overlay) return overlay;
-
   overlay = document.createElement('div');
   overlay.id = 'fxOverlay';
   overlay.className = 'fx-overlay hidden';
-  overlay.innerHTML = `
-    <div class="fx-panel">
-      <h2 id="fxTitle" class="fx-title"></h2>
-      <div id="fxSubtitle" class="muted"></div>
-      <div id="fxVs" class="fx-vs hidden"><span id="fxLeftName"></span><strong>VS</strong><span id="fxRightName"></span></div>
-      <div id="fxFightStage" class="fx-fight-stage hidden">
-        <img id="fxLeftGif" class="fx-fighter left" alt="Left fighter" />
-        <img id="fxCrowd" class="fx-crowd" src="/assets/crowd-loop.gif" alt="Crowd" />
-        <img id="fxRightGif" class="fx-fighter right" alt="Right fighter" />
-        <div class="crowd-meter"><span>Crowd</span><div><i id="crowdMeterFill"></i></div></div>
-      </div>
-      <img id="fxMainGif" class="fx-main-gif hidden" alt="Animation" />
-      <div id="fxProgressWrap" class="fx-progress-wrap hidden">
-        <div id="fxProgressBar" class="fx-progress-bar"></div>
-      </div>
-      <button id="fxSkipBtn" class="hidden btn-secondary">Skip</button>
-    </div>
-  `;
-
+  overlay.innerHTML = '<div class="fx-panel"></div>';
   document.body.appendChild(overlay);
   return overlay;
-}
-
-function animateProgress(durationMs) {
-  const bar = document.getElementById('fxProgressBar');
-  if (!bar) return;
-  bar.style.transition = 'none';
-  bar.style.width = '0%';
-  requestAnimationFrame(() => {
-    bar.style.transition = `width ${durationMs}ms linear`;
-    bar.style.width = '100%';
-  });
 }
 
 function showActionOverlay({ title, gifPath, durationMs }) {
   return new Promise((resolve) => {
     const overlay = ensureOverlay();
-    const titleNode = document.getElementById('fxTitle');
-    const subtitle = document.getElementById('fxSubtitle');
-    const mainGif = document.getElementById('fxMainGif');
-    const fightStage = document.getElementById('fxFightStage');
-    const progressWrap = document.getElementById('fxProgressWrap');
-    const skipBtn = document.getElementById('fxSkipBtn');
-    const vs = document.getElementById('fxVs');
-    const reduceMotion = window.UI && UI.getSettings().reduceMotion;
-
-    titleNode.textContent = title || 'Working...';
-    subtitle.textContent = `${title || 'Action'}...`;
-    mainGif.src = gifPath;
-    mainGif.classList.remove('hidden');
-    fightStage.classList.add('hidden');
-    vs.classList.add('hidden');
-    progressWrap.classList.remove('hidden');
-
-    let done = false;
-    let timer = null;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      overlay.classList.add('hidden');
-      skipBtn.onclick = null;
-      skipBtn.classList.add('hidden');
-      resolve();
-    };
-
-    if (reduceMotion) {
-      skipBtn.classList.remove('hidden');
-      skipBtn.textContent = 'Skip';
-      skipBtn.onclick = finish;
-    } else {
-      skipBtn.classList.add('hidden');
-    }
-
+    const panel = overlay.querySelector('.fx-panel');
+    panel.innerHTML = `
+      <h2 class="fx-title">${title || 'Working...'}</h2>
+      <img class="fx-main-gif" src="${gifPath}" alt="Action" />
+      <div class="fx-progress-wrap"><div id="fxProgressBar" class="fx-progress-bar"></div></div>
+    `;
     overlay.classList.remove('hidden');
-    animateProgress(durationMs);
-    timer = setTimeout(finish, durationMs);
+    const bar = panel.querySelector('#fxProgressBar');
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    requestAnimationFrame(() => {
+      bar.style.transition = `width ${durationMs}ms linear`;
+      bar.style.width = '100%';
+    });
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      resolve();
+    }, durationMs);
   });
 }
 
-function showFightPlayback({ leftGif, rightGif, durationMs = 30000, onSkip, leftName = 'You', rightName = 'Rival' }) {
+function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, leftName = 'You', rightName = 'Rival' }) {
   return new Promise((resolve) => {
     const overlay = ensureOverlay();
-    const titleNode = document.getElementById('fxTitle');
-    const subtitle = document.getElementById('fxSubtitle');
-    const mainGif = document.getElementById('fxMainGif');
-    const fightStage = document.getElementById('fxFightStage');
-    const progressWrap = document.getElementById('fxProgressWrap');
-    const skipBtn = document.getElementById('fxSkipBtn');
-    const leftNode = document.getElementById('fxLeftGif');
-    const rightNode = document.getElementById('fxRightGif');
-    const vs = document.getElementById('fxVs');
-    const crowdMeterFill = document.getElementById('crowdMeterFill');
+    const panel = overlay.querySelector('.fx-panel');
     const reduceMotion = window.UI && UI.getSettings().reduceMotion;
-
     let done = false;
-    let timer = null;
+    let timer;
+    let hype = 8;
+    let lastHit = 0;
     const intervals = [];
-    let crowd = 10;
 
-    function cleanup(skipped) {
-      if (done) return;
-      done = true;
-      if (timer) clearTimeout(timer);
-      intervals.forEach((id) => clearInterval(id));
-      skipBtn.onclick = null;
-      overlay.classList.add('hidden');
-      if (skipped && typeof onSkip === 'function') onSkip();
-      resolve();
-    }
-
-    titleNode.textContent = 'Fight Intro';
-    subtitle.textContent = 'Crowd roars...';
-    leftNode.src = leftGif;
-    rightNode.src = rightGif;
-    document.getElementById('fxLeftName').textContent = leftName;
-    document.getElementById('fxRightName').textContent = rightName;
-    mainGif.classList.add('hidden');
-    fightStage.classList.remove('hidden');
-    progressWrap.classList.remove('hidden');
-    vs.classList.remove('hidden');
-    skipBtn.classList.remove('hidden');
-    skipBtn.textContent = 'Skip Fight';
-    skipBtn.onclick = () => cleanup(true);
+    panel.innerHTML = `
+      <button id="fxSkipBtn" class="btn-secondary fx-skip">Skip Fight</button>
+      <h2 id="fxIntro" class="fx-title">ARENA READY</h2>
+      <p id="fxSub" class="muted">${leftName} vs ${rightName}</p>
+      <div id="fxFightStage" class="fx-fight-stage arcade-stage">
+        <div class="fighter-col"><div>${leftName}</div><div class="mini-hp"><i id="hpLeft"></i></div><img class="fx-fighter left" src="${leftGif}" alt="Left fighter" /></div>
+        <div class="fighter-col"><div>${rightName}</div><div class="mini-hp"><i id="hpRight"></i></div><img class="fx-fighter right" src="${rightGif}" alt="Right fighter" /></div>
+        <div class="crowd-meter"><span>HYPE</span><div><i id="crowdMeterFill"></i></div></div>
+      </div>
+      <div id="fxResult" class="hidden"></div>
+    `;
 
     overlay.classList.remove('hidden');
-    animateProgress(durationMs);
+    const intro = panel.querySelector('#fxIntro');
+    const skipBtn = panel.querySelector('#fxSkipBtn');
+    const resultEl = panel.querySelector('#fxResult');
+    const hpLeft = panel.querySelector('#hpLeft');
+    const hpRight = panel.querySelector('#hpRight');
+    const meter = panel.querySelector('#crowdMeterFill');
+    let leftHp = 100;
+    let rightHp = 100;
+
+    function end(skipped) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      intervals.forEach(clearInterval);
+      if (skipped && typeof onSkip === 'function') onSkip();
+      const didWin = rightHp <= leftHp;
+      intro.textContent = didWin ? 'VICTORY' : 'DEFEAT';
+      setTimeout(() => {
+        resultEl.classList.remove('hidden');
+        resultEl.innerHTML = `
+          <div class="results-panel">
+            <h3>${didWin ? 'VICTORY' : 'DEFEAT'}</h3>
+            <p>Fight complete. Return to keep momentum.</p>
+            <div class="row"><button id="fxFightAgain" class="btn--primary-arcade">FIGHT AGAIN</button><button id="fxTrain" class="btn-secondary">TRAIN</button><button id="fxRest" class="btn-secondary">REST</button></div>
+            <button id="fxClose" class="btn-secondary">Close</button>
+          </div>
+        `;
+        resultEl.querySelector('#fxFightAgain').onclick = () => { overlay.classList.add('hidden'); document.getElementById('fightAiBtn')?.click(); };
+        resultEl.querySelector('#fxTrain').onclick = () => { overlay.classList.add('hidden'); document.getElementById('trainBtn')?.click(); };
+        resultEl.querySelector('#fxRest').onclick = () => { overlay.classList.add('hidden'); document.getElementById('restBtn')?.click(); };
+        resultEl.querySelector('#fxClose').onclick = () => { overlay.classList.add('hidden'); resolve(); };
+      }, reduceMotion ? 100 : 350);
+    }
+
+    skipBtn.onclick = () => end(true);
 
     setTimeout(() => {
-      if (done) return;
-      titleNode.textContent = 'FIGHT!';
-      subtitle.textContent = 'Blades clash in the arena';
-      UI && UI.screenShake(280, 6);
-    }, reduceMotion ? 100 : 3000);
+      if (!done) intro.textContent = 'FIGHT!';
+    }, reduceMotion ? 250 : 1900);
 
-    const tickMs = reduceMotion ? 1600 : 1200;
     intervals.push(setInterval(() => {
       if (done) return;
-      const isCrit = Math.random() > 0.82;
-      const heavy = Math.random() > 0.65;
-      const amount = heavy ? Math.floor(Math.random() * 7) + 8 : Math.floor(Math.random() * 5) + 3;
       const side = Math.random() > 0.5 ? 'left' : 'right';
-      UI && UI.spawnDamageNumber(side, amount, isCrit);
-      if (window.AudioManager) AudioManager.play('hit');
-      if (isCrit || heavy) UI && UI.screenShake(200, isCrit ? 8 : 4);
-      crowd = Math.max(6, Math.min(100, crowd + (heavy ? 14 : 8)));
-      crowdMeterFill.style.width = `${crowd}%`;
-    }, tickMs));
+      const crit = Math.random() > 0.84;
+      const dmg = Math.floor(Math.random() * 6) + (crit ? 10 : 4);
+      if (side === 'left') leftHp = Math.max(0, leftHp - dmg); else rightHp = Math.max(0, rightHp - dmg);
+      hpLeft.style.width = `${leftHp}%`;
+      hpRight.style.width = `${rightHp}%`;
+      if (window.UI) UI.spawnDamageNumber(side, dmg, crit);
+      if (crit) {
+        const c = document.createElement('div');
+        c.className = 'crit-callout';
+        c.textContent = 'CRITICAL!';
+        panel.appendChild(c);
+        setTimeout(() => c.remove(), 600);
+      }
+      if (!reduceMotion && window.UI) UI.screenShake(140, crit ? 7 : 4);
+      const now = Date.now();
+      if (window.AudioManager && now - lastHit > 140) {
+        AudioManager.play('hit');
+        lastHit = now;
+      }
+      hype = Math.min(100, hype + (crit ? 18 : 10));
+      meter.style.width = `${hype}%`;
+      if (leftHp === 0 || rightHp === 0) end(false);
+    }, reduceMotion ? 900 : 650));
 
     intervals.push(setInterval(() => {
-      crowd = Math.max(4, crowd - 6);
-      crowdMeterFill.style.width = `${crowd}%`;
-    }, 900));
+      hype = Math.max(4, hype - 5);
+      meter.style.width = `${hype}%`;
+    }, 420));
 
-    timer = setTimeout(() => cleanup(false), durationMs);
+    timer = setTimeout(() => end(false), durationMs);
   });
 }
 
 function disableActions(disabled) {
-  const buttons = document.querySelectorAll('[data-action-btn]');
-  buttons.forEach((btn) => {
-    btn.disabled = disabled;
-  });
+  document.querySelectorAll('[data-action-btn]').forEach((btn) => { btn.disabled = disabled; });
 }
 
 window.App = {

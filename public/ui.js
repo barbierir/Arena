@@ -1,15 +1,15 @@
 (function () {
   const REDUCE_MOTION_KEY = 'arenaReduceMotion';
-
   const state = {
     run: null,
     settings: {
       reduceMotion: localStorage.getItem(REDUCE_MOTION_KEY) === 'true'
-    }
+    },
+    prev: {}
   };
 
   function inferHp(run) {
-    if (!run) return { current: 0, max: 100 };
+    if (!run || !run.stats) return { current: 0, max: 100 };
     const max = 60 + (run.stats.END * 10);
     const penalty = run.wound === 'serious' ? 25 : run.wound === 'light' ? 10 : 0;
     return { current: Math.max(1, max - penalty), max };
@@ -26,70 +26,74 @@
     return 'Ironwall';
   }
 
+  function pulse(el) {
+    if (!el) return;
+    el.classList.remove('pulse');
+    void el.offsetWidth;
+    el.classList.add('pulse');
+  }
+
   function ensureHud() {
-    let hud = document.getElementById('arenaHud');
-    if (hud) return hud;
-    hud = document.createElement('header');
-    hud.id = 'arenaHud';
-    hud.className = 'arena-hud';
+    const hud = document.getElementById('hud');
+    if (!hud) return null;
+    if (hud.dataset.ready === 'true') return hud;
+    hud.classList.add('hud');
     hud.innerHTML = `
-      <div class="hud-main">
-        <div><strong>Gold</strong> <span id="hudGold">-</span></div>
-        <div><strong>Gladiator</strong> <span id="hudName">${getGladiatorName()}</span></div>
-        <div><strong>Record</strong> <span id="hudRecord">-</span></div>
+      <div class="hud-col hud-left">
+        <div class="hud-chip"><span>Gold</span><strong id="hudGold">0</strong></div>
+        <div class="hud-chip"><span>Record</span><strong id="hudRecord">0W/0L</strong></div>
+        <div class="hud-chip"><span>Turns</span><strong id="hudTurns">0</strong></div>
       </div>
-      <div class="hud-stats">
-        <div class="hud-hp-wrap">
-          <span>HP</span>
-          <div class="hud-hp"><div id="hudHpBar"></div></div>
-          <span id="hudHpText">-</span>
-        </div>
-        <div class="stat-chip" data-tooltip="Power of hits and training gains.">⚔ <span id="hudStr">-</span></div>
-        <div class="stat-chip" data-tooltip="Chance to strike first and avoid heavy blows.">🛡 <span id="hudAgi">-</span></div>
-        <div class="stat-chip" data-tooltip="Durability and recovery potential.">❤ <span id="hudEnd">-</span></div>
-        <div class="stat-chip" data-tooltip="Special edge used in rating calculations.">✦ <span id="hudTalent">-</span></div>
+      <div class="hud-col hud-center">
+        <div class="hud-name" id="hudName">${getGladiatorName()}</div>
+        <div class="hud-hp-wrap"><div class="hud-hp"><div id="hudHpBar"></div></div><span id="hudHpText">0/0</span></div>
       </div>
-      <div class="hud-controls">
+      <div class="hud-col hud-right">
         <label><input id="audioToggle" type="checkbox" /> Audio</label>
         <label><input id="motionToggle" type="checkbox" /> Reduce Motion</label>
       </div>
     `;
-    document.body.prepend(hud);
+    hud.dataset.ready = 'true';
 
     hud.querySelector('#audioToggle').checked = window.AudioManager ? window.AudioManager.enabled : true;
     hud.querySelector('#motionToggle').checked = state.settings.reduceMotion;
     hud.querySelector('#audioToggle').addEventListener('change', (e) => {
-      window.AudioManager && window.AudioManager.setEnabled(e.target.checked);
-      showToast(`Audio ${e.target.checked ? 'On' : 'Off'}`, 'info');
+      if (window.AudioManager) window.AudioManager.setEnabled(e.target.checked);
     });
     hud.querySelector('#motionToggle').addEventListener('change', (e) => {
       state.settings.reduceMotion = e.target.checked;
       localStorage.setItem(REDUCE_MOTION_KEY, String(e.target.checked));
       document.body.classList.toggle('reduce-motion', e.target.checked);
-      showToast(`Reduce Motion ${e.target.checked ? 'Enabled' : 'Disabled'}`, 'info');
     });
-
-    bindTooltips(hud);
     document.body.classList.toggle('reduce-motion', state.settings.reduceMotion);
     return hud;
   }
 
-  function bindTooltips(root) {
-    root.querySelectorAll('[data-tooltip]').forEach((node) => {
-      node.tabIndex = 0;
-      node.addEventListener('click', () => showToast(node.dataset.tooltip, 'info'));
-      node.title = node.dataset.tooltip;
+  function ensureActionBar() {
+    const actionBar = document.getElementById('actionBar');
+    if (!actionBar || actionBar.dataset.ready === 'true') return actionBar;
+    actionBar.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action-target],[data-action-href]');
+      if (!btn || btn.disabled) return;
+      const href = btn.dataset.actionHref;
+      if (href) {
+        window.location.href = href;
+        return;
+      }
+      const target = btn.dataset.actionTarget;
+      const targetBtn = target ? document.querySelector(target) : null;
+      if (targetBtn) targetBtn.click();
     });
+    actionBar.dataset.ready = 'true';
+    return actionBar;
   }
 
-  function ensureToastRoot() {
-    let node = document.getElementById('toastRoot');
-    if (node) return node;
-    node = document.createElement('div');
-    node.id = 'toastRoot';
-    node.className = 'toast-root';
-    document.body.appendChild(node);
-    return node;
+  function setActionBar(actions = []) {
+    const bar = ensureActionBar();
+    if (!bar) return;
+    bar.innerHTML = actions.map((action) => `
+      <button class="${action.className || 'btn-secondary'}" ${action.target ? `data-action-target="${action.target}"` : ''} ${action.href ? `data-action-href="${action.href}"` : ''} ${action.id ? `id="${action.id}"` : ''} ${action.disabled ? 'disabled' : ''}>${action.label}</button>
+    `).join('');
   }
 
   function animateCount(el, from, to, duration = 700, reduceMotion = state.settings.reduceMotion) {
@@ -107,20 +111,56 @@
     requestAnimationFrame(step);
   }
 
+  function updateHud() {
+    ensureHud();
+    const run = state.run;
+    if (!run) return;
+    const hp = inferHp(run);
+    const hpPct = Math.max(0, Math.min(100, Math.round((hp.current / hp.max) * 100)));
+    const goldEl = document.getElementById('hudGold');
+    const recordEl = document.getElementById('hudRecord');
+    const hpBar = document.getElementById('hudHpBar');
+
+    if (goldEl) {
+      animateCount(goldEl, state.prev.gold ?? run.gold ?? 0, run.gold ?? 0, 450);
+      if (state.prev.gold != null && state.prev.gold !== run.gold) pulse(goldEl.closest('.hud-chip'));
+    }
+    if (recordEl) {
+      recordEl.textContent = `${run.wins ?? 0}W/${run.losses ?? 0}L`;
+      if ((state.prev.wins !== undefined && state.prev.wins !== run.wins) || (state.prev.losses !== undefined && state.prev.losses !== run.losses)) pulse(recordEl.closest('.hud-chip'));
+    }
+    if (document.getElementById('hudTurns')) document.getElementById('hudTurns').textContent = run.turns ?? 0;
+    if (document.getElementById('hudName')) document.getElementById('hudName').textContent = getGladiatorName();
+    if (document.getElementById('hudHpText')) document.getElementById('hudHpText').textContent = `${hp.current}/${hp.max}`;
+    if (hpBar) {
+      hpBar.style.width = `${hpPct}%`;
+      if (state.prev.hpCurrent !== undefined && state.prev.hpCurrent !== hp.current) {
+        hpBar.classList.remove('flash');
+        void hpBar.offsetWidth;
+        hpBar.classList.add('flash');
+      }
+    }
+
+    state.prev = { gold: run.gold, wins: run.wins, losses: run.losses, hpCurrent: hp.current };
+  }
+
   function showToast(message, type = 'info') {
-    const root = ensureToastRoot();
+    let root = document.getElementById('toastRoot');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'toastRoot';
+      root.className = 'toast-root';
+      document.body.appendChild(root);
+    }
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
     root.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 180);
-    }, 2200);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 180); }, 1800);
   }
 
-  function screenShake(duration = 220, intensity = 5) {
+  function screenShake(duration = 180, intensity = 4) {
     if (state.settings.reduceMotion) return;
     const panel = document.querySelector('.fx-panel');
     if (!panel) return;
@@ -136,29 +176,13 @@
     node.className = `dmg-number ${side} ${isCrit ? 'crit' : ''}`;
     node.textContent = `-${amount}`;
     stage.appendChild(node);
-    setTimeout(() => node.remove(), state.settings.reduceMotion ? 220 : 900);
+    setTimeout(() => node.remove(), state.settings.reduceMotion ? 300 : 900);
   }
 
   function setRun(run) {
     state.run = run;
-    ensureHud();
     document.dispatchEvent(new CustomEvent('game:stateChanged', { detail: { run } }));
-  }
-
-  function updateHud() {
-    const run = state.run;
-    if (!run) return;
-    const hp = inferHp(run);
-    const hpPct = Math.round((hp.current / hp.max) * 100);
-    document.getElementById('hudGold').textContent = run.gold ?? '-';
-    document.getElementById('hudName').textContent = getGladiatorName();
-    document.getElementById('hudRecord').textContent = `${run.wins ?? 0}W/${run.losses ?? 0}L`;
-    document.getElementById('hudStr').textContent = run.stats?.STR ?? '-';
-    document.getElementById('hudAgi').textContent = run.stats?.AGI ?? '-';
-    document.getElementById('hudEnd').textContent = run.stats?.END ?? '-';
-    document.getElementById('hudTalent').textContent = run.stats?.Talent ?? '-';
-    document.getElementById('hudHpText').textContent = `${hp.current}/${hp.max}`;
-    document.getElementById('hudHpBar').style.width = `${hpPct}%`;
+    updateHud();
   }
 
   document.addEventListener('game:stateChanged', updateHud);
@@ -170,7 +194,8 @@
     screenShake,
     spawnDamageNumber,
     setRun,
-    getSettings: () => ({ ...state.settings }),
-    ensureHud
+    ensureHud,
+    setActionBar,
+    getSettings: () => ({ ...state.settings })
   };
 })();
