@@ -62,6 +62,48 @@ function showActionOverlay({ title, gifPath, durationMs }) {
   });
 }
 
+
+const LATEST_ACTION_LIMIT = 5;
+
+function getLatestActionsStateKey(runId) {
+  const resolvedRunId = runId || (window.Api && typeof Api.getRunId === 'function' ? Api.getRunId() : null) || 'default';
+  return `arenaGameState:${resolvedRunId}`;
+}
+
+function appendLatestAction(entry, { runId } = {}) {
+  if (!entry || typeof localStorage === 'undefined') return;
+  const key = getLatestActionsStateKey(runId);
+  let parsed = {};
+  try {
+    parsed = JSON.parse(localStorage.getItem(key) || '{}') || {};
+  } catch (_) {
+    parsed = {};
+  }
+  const trainingLog = Array.isArray(parsed.trainingLog) ? parsed.trainingLog : [];
+  trainingLog.unshift(entry);
+  parsed.trainingLog = trainingLog.slice(0, LATEST_ACTION_LIMIT);
+  localStorage.setItem(key, JSON.stringify(parsed));
+}
+
+function buildFightLatestAction(fightResult, { runId } = {}) {
+  const explicitOutcome = typeof fightResult?.outcome === 'string' ? fightResult.outcome.toLowerCase() : null;
+  const winnerOutcome = (runId && fightResult && typeof fightResult.winnerRunId === 'string')
+    ? (fightResult.winnerRunId === runId ? 'win' : 'loss')
+    : null;
+  const outcome = resolveOutcome(fightResult) || explicitOutcome || winnerOutcome;
+  const status = outcome === 'win' ? 'VICTORY' : 'DEFEAT';
+  const details = [];
+  const gold = Number(fightResult?.gold || 0);
+  const fame = Number(fightResult?.fame || 0);
+  if (gold > 0) details.push(`+${gold} gold`);
+  if (fame > 0) details.push(`+${fame} fame`);
+  const injury = String(fightResult?.injury || '').trim().toLowerCase();
+  const hasInjury = injury && injury !== 'none' && injury !== 'no' && injury !== 'false';
+  const rewardSuffix = details.length ? ` (${details.join(', ')})` : '';
+  const injurySuffix = hasInjury ? ' • Injury' : '';
+  return { action: 'Fight', result: `${status}${rewardSuffix}${injurySuffix}` };
+}
+
 let activeFightPlayback = null;
 
 function resolveOutcome(fightResult) {
@@ -297,7 +339,9 @@ window.App = {
   pickRandomRecruitGif,
   showActionOverlay,
   showFightPlayback,
-  disableActions
+  disableActions,
+  appendLatestAction,
+  buildFightLatestAction
 };
 
 
