@@ -165,9 +165,13 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
     }
 
     function closeAnd(fn) {
+      clearTimeout(timer);
+      intervals.forEach(clearInterval);
       overlay.classList.add('hidden');
       activeFightPlayback = null;
       if (fn) fn();
+      const gameActionBtn = document.querySelector('#fightAiBtn, [data-action-btn]:not([disabled])');
+      if (gameActionBtn && typeof gameActionBtn.focus === 'function') gameActionBtn.focus();
       resolve({
         authoritativeOutcome,
         overlayOutcome: resultEl.dataset.outcome || null,
@@ -214,7 +218,6 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
         <div class="results-panel overlay-results">
           <h3>${didWin ? 'VICTORY' : 'DEFEAT'}</h3>
           <p class="reward-line">Gold: <strong id="rewardGold">0</strong> • Fame: <strong id="rewardFame">0</strong></p>
-          <div class="row"><button id="fxFightAgain" class="btn btn--primary btn--fight">FIGHT AGAIN</button><button id="fxTrain" class="btn btn--secondary">TRAIN</button><button id="fxRest" class="btn btn--secondary">REST</button></div>
           <button id="fxClose" class="btn btn--tertiary">Close</button>
         </div>
       `;
@@ -222,9 +225,6 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
         UI.animateCount(resultEl.querySelector('#rewardGold'), 0, goldReward, 550, reduceMotion);
         UI.animateCount(resultEl.querySelector('#rewardFame'), 0, fameReward, 550, reduceMotion);
       }
-      resultEl.querySelector('#fxFightAgain').onclick = () => closeAnd(() => document.getElementById('fightAiBtn')?.click());
-      resultEl.querySelector('#fxTrain').onclick = () => closeAnd(() => document.getElementById('trainBtn')?.click());
-      resultEl.querySelector('#fxRest').onclick = () => closeAnd(() => document.getElementById('restBtn')?.click());
       resultEl.querySelector('#fxClose').onclick = () => closeAnd();
     }
 
