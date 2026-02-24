@@ -33,6 +33,7 @@
       const startActions = document.getElementById('startActions');
       const detailsToggle = document.getElementById('detailsToggle');
       const savedId = document.getElementById('savedId');
+      let newRunInFlight = false;
 
       function renderButtons(run) {
         const hasRun = !!run;
@@ -50,18 +51,25 @@
           location.href = '/game.html';
         });
         document.getElementById('newRunBtn').addEventListener('click', async () => {
+          if (newRunInFlight) return;
           Api.clearError();
+          newRunInFlight = true;
+          document.getElementById('newRunBtn').disabled = true;
           try {
             const data = await Api.request('/api/run/new', { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({}) });
             Api.setPlayerId(data.playerId);
             Api.setRunId(data.runId);
             const generated = await Api.request(`/api/run/${data.runId}/recruit/generate`, { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: data.playerId }) });
             if (generated?.candidate?.id) {
-              await Api.request(`/api/run/${data.runId}/recruit/buy`, { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: data.playerId, candidateId: generated.candidate.id }) });
+              await Api.request(`/api/run/${data.runId}/recruit/starter`, { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: data.playerId, candidateId: generated.candidate.id }) });
               localStorage.setItem('arenaGladiatorName', generated.candidate.name || 'Gladiator');
             }
             location.href = '/game.html';
-          } catch (error) { Api.showError(error); }
+          } catch (error) {
+            newRunInFlight = false;
+            document.getElementById('newRunBtn').disabled = false;
+            Api.showError(error);
+          }
         });
       }
 

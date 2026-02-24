@@ -7,6 +7,7 @@ const {
   generateCandidate,
   skipCandidate,
   buyCandidate,
+  recruitStarterCandidate,
   train,
   rest,
   fightAI,
@@ -104,6 +105,18 @@ app.post('/api/run/:runId/recruit/buy', (req, res) => {
     const { playerId, candidateId } = req.body;
     const run = getRunOrThrow(req.params.runId, playerId);
     const result = buyCandidate(run, playerId, candidateId);
+    res.json({ run: result.run, candidate: result.candidate });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+app.post('/api/run/:runId/recruit/starter', (req, res) => {
+  try {
+    const { playerId, candidateId } = req.body;
+    const run = getRunOrThrow(req.params.runId, playerId);
+    if (run.roster && run.roster.length > 0) return res.status(400).json({ error: { code: 'REQUEST_FAILED', message: 'Starter already recruited' } });
+    const result = recruitStarterCandidate(run, playerId, candidateId);
     res.json({ run: result.run, candidate: result.candidate });
   } catch (error) {
     sendError(res, error);

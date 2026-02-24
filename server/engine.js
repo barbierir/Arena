@@ -143,6 +143,26 @@ function buyCandidate(run, playerId, candidateId) {
   return { run, candidate };
 }
 
+function recruitStarterCandidate(run, playerId, candidateId) {
+  ensureActive(run);
+  validateRunAccess(run, playerId);
+
+  const perPlayer = candidates.get(playerId);
+  if (!perPlayer) throw new Error('Candidate not found');
+
+  const candidate = perPlayer.get(candidateId);
+  if (!candidate) throw new Error('Candidate not found');
+
+  run.roster.push(candidate.id);
+  run.stats.STR += candidate.stats.STR;
+  run.stats.AGI += candidate.stats.AGI;
+  run.stats.END += candidate.stats.END;
+  run.stats.Talent += candidate.stats.Talent;
+
+  perPlayer.delete(candidateId);
+  return { run, candidate };
+}
+
 function train(run) {
   ensureActive(run);
   ensureHasGladiator(run);
@@ -321,6 +341,7 @@ module.exports = {
   generateCandidate,
   skipCandidate,
   buyCandidate,
+  recruitStarterCandidate,
   train,
   rest,
   fightAI,
