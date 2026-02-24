@@ -43,10 +43,10 @@
         const hasGladiator = !!(run?.roster && run.roster.length);
         const lowHp = run?.wound === 'serious';
         UI.setActionBar([
-          { label: hasGladiator ? 'FIGHT AI' : 'RECRUIT', target: hasGladiator ? '#fightAiBtn' : null, href: hasGladiator ? null : '/recruit.html', className: `btn--fight ${(!lowHp && hasGladiator) ? 'is-recommended' : ''}`, disabled: !hasGladiator || run.turns <= 0 },
-          { label: 'TRAIN', target: '#trainBtn', className: 'btn-secondary btn--minor' },
-          { label: 'REST', target: '#restBtn', className: `btn-secondary btn--minor ${lowHp ? 'is-recommended' : ''}` },
-          { label: 'POST CHALLENGE', target: '#postChallengeBtn', className: 'btn-tertiary btn--tertiary-small' }
+          { label: hasGladiator ? 'FIGHT AI' : 'RECRUIT', target: hasGladiator ? '#fightAiBtn' : null, href: hasGladiator ? null : '/recruit.html', className: `btn btn--primary btn--fight ${(!lowHp && hasGladiator) ? 'is-recommended' : ''}`, disabled: !hasGladiator || run.turns <= 0 },
+          { label: 'TRAIN', target: '#trainBtn', className: 'btn btn--secondary btn--minor' },
+          { label: 'REST', target: '#restBtn', className: `btn btn--secondary btn--minor ${lowHp ? 'is-recommended' : ''}` },
+          { label: 'POST CHALLENGE', target: '#postChallengeBtn', className: 'btn btn--tertiary btn--tertiary-small' }
         ]);
       }
       function renderRun() {
@@ -54,7 +54,7 @@
         document.getElementById('victories').textContent = `${run.wins} VICTORIES`; document.getElementById('defeats').textContent = `${run.losses} DEFEATS`; document.getElementById('stats').textContent = App.formatStats(run.stats); UI.setRun(run); App.disableActions(run.turns <= 0); updateActionBar(); if (App.runEnded(run)) location.href = '/summary.html';
       }
       async function loadRun() { run = await Api.getRun(); if (!run) { location.href = '/index.html'; return; } renderRun(); }
-      function renderResultsPanel(title, changes) { const panel = document.getElementById('resultsPanel'); panel.classList.remove('hidden'); panel.innerHTML = `<h3>${title}</h3><p>${changes}</p><div class="row"><button class="btn--primary-arcade" id="nextFight">FIGHT AGAIN</button><button class="btn-secondary" id="nextTrain">TRAIN</button><button class="btn-secondary" id="nextRest">REST</button></div>`; panel.querySelector('#nextFight').onclick = ()=>document.getElementById('fightAiBtn').click(); panel.querySelector('#nextTrain').onclick = ()=>document.getElementById('trainBtn').click(); panel.querySelector('#nextRest').onclick = ()=>document.getElementById('restBtn').click(); }
+      function renderResultsPanel(title, changes) { const panel = document.getElementById('resultsPanel'); panel.classList.remove('hidden'); panel.innerHTML = `<h3>${title}</h3><p>${changes}</p><div class="row"><button class="btn btn--primary" id="nextFight">FIGHT AGAIN</button><button class="btn btn--secondary" id="nextTrain">TRAIN</button><button class="btn btn--secondary" id="nextRest">REST</button></div>`; panel.querySelector('#nextFight').onclick = ()=>document.getElementById('fightAiBtn').click(); panel.querySelector('#nextTrain').onclick = ()=>document.getElementById('trainBtn').click(); panel.querySelector('#nextRest').onclick = ()=>document.getElementById('restBtn').click(); }
       async function doTrain(){ Api.clearError(); App.disableActions(true); try { await App.showActionOverlay({ title:'Training...', gifPath:'/assets/train.gif', durationMs: 1800 }); const data = await Api.request(`/api/run/${Api.getRunId()}/action/train`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); const m={STR:'Strength',AGI:'Agility',END:'Endurance'}; const improved=m[data.statImproved]||'Stat'; appendTrainingLogEntry({ ts: nowTimestamp(), action:'Train', result:`+1 ${improved}`}); setResult(`Training complete. +1 ${improved}.`);} catch (e){Api.showError(e);} finally { App.disableActions(run ? run.turns<=0 : false);} }
       document.getElementById('trainBtn').addEventListener('click', doTrain);
       document.getElementById('gladiatorGif').addEventListener('error', () => { document.getElementById('gladiatorGif').classList.add('hidden'); document.getElementById('gladiatorFallback').classList.remove('hidden'); });

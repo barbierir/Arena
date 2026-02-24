@@ -5,7 +5,16 @@
     settings: {
       reduceMotion: localStorage.getItem(REDUCE_MOTION_KEY) === 'true'
     },
-    prev: {}
+    prev: {},
+    announcer: {
+      queue: [],
+      activeTimer: null,
+      isShowing: false,
+      lastShownAt: new Map(),
+      defaultDurationMs: 900,
+      repeatCooldownMs: 2000,
+      critCooldownMs: 700
+    }
   };
 
   function inferHp(run) {
@@ -92,8 +101,81 @@
     const bar = ensureActionBar();
     if (!bar) return;
     bar.innerHTML = actions.map((action) => `
-      <button class="${action.className || 'btn-secondary'}" ${action.target ? `data-action-target="${action.target}"` : ''} ${action.href ? `data-action-href="${action.href}"` : ''} ${action.id ? `id="${action.id}"` : ''} ${action.disabled ? 'disabled' : ''}>${action.label}</button>
+      <button class="${action.className || 'btn btn--secondary'}" ${action.target ? `data-action-target="${action.target}"` : ''} ${action.href ? `data-action-href="${action.href}"` : ''} ${action.id ? `id="${action.id}"` : ''} ${action.disabled ? 'disabled' : ''}>${action.label}</button>
     `).join('');
+  }
+
+  function ensureAnnouncer() {
+    const panel = document.querySelector('.fx-panel');
+    if (!panel) return null;
+    let announcer = panel.querySelector('#announcer');
+    if (!announcer) {
+      announcer = document.createElement('div');
+      announcer.id = 'announcer';
+      announcer.className = 'announcer';
+      announcer.setAttribute('aria-live', 'polite');
+      panel.appendChild(announcer);
+    }
+    return announcer;
+  }
+
+  function resetAnnouncer() {
+    const announcer = ensureAnnouncer();
+    const announcerState = state.announcer;
+    announcerState.queue = [];
+    announcerState.isShowing = false;
+    if (announcerState.activeTimer) clearTimeout(announcerState.activeTimer);
+    announcerState.activeTimer = null;
+    announcerState.lastShownAt.clear();
+    if (announcer) {
+      announcer.className = 'announcer';
+      announcer.textContent = '';
+    }
+  }
+
+  function showAnnouncement({ text, level = 'normal', durationMs = state.announcer.defaultDurationMs }) {
+    const announcer = ensureAnnouncer();
+    if (!announcer) return;
+    announcer.className = `announcer show level-${level}`;
+    announcer.textContent = text;
+    state.announcer.isShowing = true;
+
+    state.announcer.activeTimer = setTimeout(() => {
+      announcer.classList.remove('show');
+      announcer.classList.add('hide');
+      setTimeout(() => {
+        announcer.textContent = '';
+        announcer.className = 'announcer';
+        state.announcer.isShowing = false;
+        const next = state.announcer.queue.shift();
+        if (next) showAnnouncement(next);
+      }, state.settings.reduceMotion ? 120 : 220);
+    }, durationMs);
+  }
+
+  function announce(text, level = 'normal', durationMs = state.announcer.defaultDurationMs) {
+    const now = Date.now();
+    const key = `${level}:${text}`;
+    const isCrit = text.includes('CRITICAL');
+    const cooldown = isCrit ? state.announcer.critCooldownMs : state.announcer.repeatCooldownMs;
+    const last = state.announcer.lastShownAt.get(key) || 0;
+    if (now - last < cooldown) return;
+    state.announcer.lastShownAt.set(key, now);
+
+    const incoming = { text, level, durationMs };
+    const isHighPriority = level === 'high';
+    if (isHighPriority && state.announcer.isShowing) {
+      if (state.announcer.activeTimer) clearTimeout(state.announcer.activeTimer);
+      state.announcer.queue = [];
+      const announcer = ensureAnnouncer();
+      if (announcer) announcer.className = 'announcer';
+      state.announcer.isShowing = false;
+    }
+    if (state.announcer.isShowing) {
+      state.announcer.queue.push(incoming);
+    } else {
+      showAnnouncement(incoming);
+    }
   }
 
   function animateCount(el, from, to, duration = 700, reduceMotion = state.settings.reduceMotion) {
@@ -197,6 +279,8 @@
     setRun,
     ensureHud,
     setActionBar,
+    announce,
+    resetAnnouncer,
     getSettings: () => ({ ...state.settings })
   };
 })();
