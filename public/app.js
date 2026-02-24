@@ -62,38 +62,41 @@ function showActionOverlay({ title, gifPath, durationMs }) {
   });
 }
 
-function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, leftName = 'You', rightName = 'Rival' }) {
+function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, leftName = 'You', rightName = 'Rival', rewards = {} }) {
   return new Promise((resolve) => {
     const overlay = ensureOverlay();
     const panel = overlay.querySelector('.fx-panel');
     const reduceMotion = window.UI && UI.getSettings().reduceMotion;
     let done = false;
     let timer;
-    let hype = 8;
+    let hype = 10;
     let lastHit = 0;
     const intervals = [];
 
     panel.innerHTML = `
-      <button id="fxSkipBtn" class="btn-secondary fx-skip">Skip Fight</button>
-      <h2 id="fxIntro" class="fx-title">ARENA READY</h2>
-      <p id="fxSub" class="muted">${leftName} vs ${rightName}</p>
+      <div class="fight-hud"><div class="fight-timer" id="fxTimer">${Math.ceil(durationMs / 1000)}</div><div class="fight-title">${leftName} vs ${rightName}</div><button id="fxSkipBtn" class="btn-secondary fx-skip">Skip</button></div>
       <div id="fxFightStage" class="fx-fight-stage arcade-stage">
-        <div class="fighter-col"><div>${leftName}</div><div class="mini-hp"><i id="hpLeft"></i></div><img class="fx-fighter left" src="${leftGif}" alt="Left fighter" /></div>
-        <div class="fighter-col"><div>${rightName}</div><div class="mini-hp"><i id="hpRight"></i></div><img class="fx-fighter right" src="${rightGif}" alt="Right fighter" /></div>
-        <div class="crowd-meter"><span>HYPE</span><div><i id="crowdMeterFill"></i></div></div>
+        <img class="fx-fighter left" src="${leftGif}" alt="Left fighter" />
+        <img class="fx-fighter right" src="${rightGif}" alt="Right fighter" />
+        <div class="hp-dock hp-left"><span>${leftName}</span><div class="mini-hp"><i id="hpLeft"></i></div></div>
+        <div class="hp-dock hp-right"><span>${rightName}</span><div class="mini-hp"><i id="hpRight"></i></div></div>
+        <div class="crowd-meter crowd-meter--overlay"><span>HYPE</span><div><i id="crowdMeterFill"></i></div></div>
       </div>
       <div id="fxResult" class="hidden"></div>
     `;
 
     overlay.classList.remove('hidden');
-    const intro = panel.querySelector('#fxIntro');
     const skipBtn = panel.querySelector('#fxSkipBtn');
     const resultEl = panel.querySelector('#fxResult');
     const hpLeft = panel.querySelector('#hpLeft');
     const hpRight = panel.querySelector('#hpRight');
     const meter = panel.querySelector('#crowdMeterFill');
+    const timerEl = panel.querySelector('#fxTimer');
     let leftHp = 100;
     let rightHp = 100;
+    const startedAt = Date.now();
+
+    function closeAnd(fn) { overlay.classList.add('hidden'); if (fn) fn(); resolve(); }
 
     function end(skipped) {
       if (done) return;
@@ -102,29 +105,34 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       intervals.forEach(clearInterval);
       if (skipped && typeof onSkip === 'function') onSkip();
       const didWin = rightHp <= leftHp;
-      intro.textContent = didWin ? 'VICTORY' : 'DEFEAT';
-      setTimeout(() => {
-        resultEl.classList.remove('hidden');
-        resultEl.innerHTML = `
-          <div class="results-panel">
-            <h3>${didWin ? 'VICTORY' : 'DEFEAT'}</h3>
-            <p>Fight complete. Return to keep momentum.</p>
-            <div class="row"><button id="fxFightAgain" class="btn--primary-arcade">FIGHT AGAIN</button><button id="fxTrain" class="btn-secondary">TRAIN</button><button id="fxRest" class="btn-secondary">REST</button></div>
-            <button id="fxClose" class="btn-secondary">Close</button>
-          </div>
-        `;
-        resultEl.querySelector('#fxFightAgain').onclick = () => { overlay.classList.add('hidden'); document.getElementById('fightAiBtn')?.click(); };
-        resultEl.querySelector('#fxTrain').onclick = () => { overlay.classList.add('hidden'); document.getElementById('trainBtn')?.click(); };
-        resultEl.querySelector('#fxRest').onclick = () => { overlay.classList.add('hidden'); document.getElementById('restBtn')?.click(); };
-        resultEl.querySelector('#fxClose').onclick = () => { overlay.classList.add('hidden'); resolve(); };
-      }, reduceMotion ? 100 : 350);
+      const goldReward = Number(rewards.gold || 0);
+      const fameReward = Number(rewards.fame || 0);
+      resultEl.classList.remove('hidden');
+      resultEl.innerHTML = `
+        <div class="results-panel overlay-results">
+          <h3>${didWin ? 'VICTORY' : 'DEFEAT'}</h3>
+          <p class="reward-line">Gold: <strong id="rewardGold">0</strong> • Fame: <strong id="rewardFame">0</strong></p>
+          <div class="row"><button id="fxFightAgain" class="btn--fight">FIGHT AGAIN</button><button id="fxTrain" class="btn-secondary">TRAIN</button><button id="fxRest" class="btn-secondary">REST</button></div>
+          <button id="fxClose" class="btn-tertiary">Close</button>
+        </div>
+      `;
+      if (window.UI) {
+        UI.animateCount(resultEl.querySelector('#rewardGold'), 0, goldReward, 550, reduceMotion);
+        UI.animateCount(resultEl.querySelector('#rewardFame'), 0, fameReward, 550, reduceMotion);
+      }
+      resultEl.querySelector('#fxFightAgain').onclick = () => closeAnd(() => document.getElementById('fightAiBtn')?.click());
+      resultEl.querySelector('#fxTrain').onclick = () => closeAnd(() => document.getElementById('trainBtn')?.click());
+      resultEl.querySelector('#fxRest').onclick = () => closeAnd(() => document.getElementById('restBtn')?.click());
+      resultEl.querySelector('#fxClose').onclick = () => closeAnd();
     }
 
     skipBtn.onclick = () => end(true);
 
-    setTimeout(() => {
-      if (!done) intro.textContent = 'FIGHT!';
-    }, reduceMotion ? 250 : 1900);
+    intervals.push(setInterval(() => {
+      if (done) return;
+      const remaining = Math.max(0, Math.ceil((durationMs - (Date.now() - startedAt)) / 1000));
+      timerEl.textContent = remaining;
+    }, 250));
 
     intervals.push(setInterval(() => {
       if (done) return;
@@ -140,18 +148,25 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
         c.className = 'crit-callout';
         c.textContent = 'CRITICAL!';
         panel.appendChild(c);
-        setTimeout(() => c.remove(), 600);
+        setTimeout(() => c.remove(), 520);
       }
       if (!reduceMotion && window.UI) UI.screenShake(140, crit ? 7 : 4);
       const now = Date.now();
-      if (window.AudioManager && now - lastHit > 140) {
+      if (window.AudioManager && now - lastHit > 180) {
         AudioManager.play('hit');
         lastHit = now;
       }
       hype = Math.min(100, hype + (crit ? 18 : 10));
       meter.style.width = `${hype}%`;
+      if (hype > 70 && Math.random() > 0.65) {
+        const tag = document.createElement('div');
+        tag.className = 'hype-callout';
+        tag.textContent = 'CROWD ROARS!';
+        panel.appendChild(tag);
+        setTimeout(() => tag.remove(), 500);
+      }
       if (leftHp === 0 || rightHp === 0) end(false);
-    }, reduceMotion ? 900 : 650));
+    }, reduceMotion ? 900 : 620));
 
     intervals.push(setInterval(() => {
       hype = Math.max(4, hype - 5);

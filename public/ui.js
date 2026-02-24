@@ -174,9 +174,10 @@
     if (!stage) return;
     const node = document.createElement('div');
     node.className = `dmg-number ${side} ${isCrit ? 'crit' : ''}`;
+    if (state.settings.reduceMotion) node.style.animation = 'none';
     node.textContent = `-${amount}`;
     stage.appendChild(node);
-    setTimeout(() => node.remove(), state.settings.reduceMotion ? 300 : 900);
+    setTimeout(() => node.remove(), state.settings.reduceMotion ? 260 : 900);
   }
 
   function setRun(run) {
