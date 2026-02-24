@@ -31,9 +31,9 @@
         const rerollBtn = document.getElementById('rerollBtn');
         if (rerollBtn) rerollBtn.disabled = disabled || rerollInFlight;
         const buyBtn = document.getElementById('buyBtn');
-        if (buyBtn) buyBtn.disabled = disabled || rerollInFlight || buyInFlight || !currentCandidate || run.gold < (currentCandidate?.price ?? Infinity);
+        if (buyBtn) buyBtn.disabled = disabled || rerollInFlight || buyInFlight || !currentCandidate || !run || run.gold < (currentCandidate?.price ?? Infinity);
       }
-      function renderRun() { document.getElementById('turns').textContent = run.turns; document.getElementById('gold').textContent = run.gold; UI.setRun(run); setActionDisabled(run.turns <= 0); if (App.runEnded(run)) location.href = '/summary.html'; }
+      function renderRun() { if (!run) return; document.getElementById('turns').textContent = Number(run.turns) || 0; document.getElementById('gold').textContent = Number(run.gold) || 0; UI.setRun(run); setActionDisabled(run.turns <= 0); if (App.runEnded(run)) location.href = '/summary.html'; }
       function renderCandidate() {
         const card = document.getElementById('candidateCard'); const buyBtn = document.getElementById('buyBtn');
         if (!currentCandidate) {
@@ -41,17 +41,18 @@
           buyBtn.disabled = true;
           return;
         }
-        const s = currentCandidate.stats;
-        card.innerHTML = `<h3>${currentCandidate.name}</h3><div class="candidate-stats-row"><span>STR <b id="strN">0</b></span><span>AGI <b id="agiN">0</b></span><span>END <b id="endN">0</b></span><span>TAL <b id="talN">0</b></span></div><p><strong>Trait:</strong> <span class="trait-pill">${UI.traitFromStats(s)}</span></p><p><strong>Price:</strong> ${currentCandidate.price} <strong>Rating:</strong> ${currentCandidate.rating.toFixed(1)}</p>`;
-        ['STR','AGI','END','Talent'].forEach((k,i)=>UI.animateCount(card.querySelector(['#strN','#agiN','#endN','#talN'][i]),0,s[k],600));
-        buyBtn.disabled = rerollInFlight || buyInFlight || run.turns <= 0 || run.gold < currentCandidate.price;
+        const s = currentCandidate.stats || { STR: 0, AGI: 0, END: 0, Talent: 0 };
+        const rating = Number(currentCandidate.rating);
+        card.innerHTML = `<h3>${currentCandidate.name}</h3><div class="candidate-stats-row"><span>STR <b id="strN">0</b></span><span>AGI <b id="agiN">0</b></span><span>END <b id="endN">0</b></span><span>TAL <b id="talN">0</b></span></div><p><strong>Trait:</strong> <span class="trait-pill">${UI.traitFromStats(s)}</span></p><p><strong>Price:</strong> ${Number(currentCandidate.price) || 0} <strong>Rating:</strong> ${Number.isFinite(rating) ? rating.toFixed(1) : '0.0'}</p>`;
+        ['STR','AGI','END','Talent'].forEach((k,i)=>UI.animateCount(card.querySelector(['#strN','#agiN','#endN','#talN'][i]),0,Number(s[k]) || 0,600));
+        buyBtn.disabled = rerollInFlight || buyInFlight || !run || run.turns <= 0 || run.gold < (Number(currentCandidate.price) || 0);
       }
       async function refreshRun() { run = await Api.getRun(); if (!run) { location.href = '/index.html'; return; } renderRun(); }
       function announce(msg){ const b=document.getElementById('recruitBanner'); b.textContent=msg; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),1200); }
 
       document.getElementById('rerollBtn').addEventListener('click', async () => {
         Api.clearError();
-        if (rerollInFlight || buyInFlight || run.turns <= 0) return;
+        if (rerollInFlight || buyInFlight || !run || run.turns <= 0) return;
         rerollInFlight = true;
         setActionDisabled(false);
         swapRecruitGif();

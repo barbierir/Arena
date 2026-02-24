@@ -37,6 +37,11 @@ function clearRunId() {
   localStorage.removeItem(STORAGE_KEYS.runId);
 }
 
+function clearSession() {
+  localStorage.removeItem(STORAGE_KEYS.runId);
+  localStorage.removeItem(STORAGE_KEYS.playerId);
+}
+
 function jsonHeaders(extra = {}) {
   return { 'Content-Type': 'application/json', ...extra };
 }
@@ -60,8 +65,16 @@ async function getRun() {
   const runId = getRunId();
   const playerId = getPlayerId();
   if (!runId || !playerId) return null;
-  const data = await request(`/api/run/${runId}?playerId=${encodeURIComponent(playerId)}`);
-  return data.run;
+  try {
+    const data = await request(`/api/run/${runId}?playerId=${encodeURIComponent(playerId)}`);
+    return data.run;
+  } catch (error) {
+    if (error && (error.code === 'RUN_NOT_FOUND' || error.code === 'FORBIDDEN')) {
+      clearSession();
+      return null;
+    }
+    throw error;
+  }
 }
 
 async function listOpenChallenges() {
@@ -105,6 +118,7 @@ window.Api = {
   getRunId,
   setRunId,
   clearRunId,
+  clearSession,
   request,
   getRun,
   listOpenChallenges,
