@@ -27,16 +27,16 @@
       App.renderNav();
       let run = null; const TRAINING_LOG_LIMIT = 5; const gameState = { trainingLog: [] };
       function getGameStateKey() { return `arenaGameState:${Api.getRunId() || 'default'}`; }
-      function loadGameState() { try { const parsed = JSON.parse(localStorage.getItem(getGameStateKey()) || '{}') || {}; gameState.trainingLog = Array.isArray(parsed.trainingLog) ? parsed.trainingLog : []; } catch { gameState.trainingLog = []; } }
+      function loadGameState() { try { const parsed = JSON.parse(localStorage.getItem(getGameStateKey()) || '{}') || {}; gameState.trainingLog = Array.isArray(parsed.trainingLog) ? parsed.trainingLog.slice(0, TRAINING_LOG_LIMIT) : []; } catch { gameState.trainingLog = []; } }
       function persistGameState() { localStorage.setItem(getGameStateKey(), JSON.stringify({ trainingLog: gameState.trainingLog })); }
-      function appendTrainingLogEntry(entry) { gameState.trainingLog.unshift(entry); gameState.trainingLog = gameState.trainingLog.slice(0, TRAINING_LOG_LIMIT); persistGameState(); renderTrainingLog(); }
+      function appendTrainingLogEntry(entry) { if (!entry || typeof entry !== 'object') return; gameState.trainingLog.unshift(entry); gameState.trainingLog = gameState.trainingLog.slice(0, TRAINING_LOG_LIMIT); persistGameState(); renderTrainingLog(); }
       function renderTrainingLog() { const list = document.getElementById('trainingLogList'); list.innerHTML = gameState.trainingLog.length ? gameState.trainingLog.map((e)=>{ const action = (e && typeof e.action === 'string' && e.action.trim()) ? e.action.trim() : 'Train'; const result = (e && typeof e.result === 'string' && e.result.trim()) ? e.result.trim() : 'No result'; return `<li class="training-log-entry"><span class="training-log-result">${action}: ${result}</span></li>`; }).join('') : '<li class="muted">No actions yet.</li>'; }
       function ensureSession() { if (!Api.getRunId() || !Api.getPlayerId()) { location.href = '/index.html'; return false; } return true; }
       function updateActionBar() {
         const hasGladiator = !!(run?.roster && run.roster.length);
         const lowHp = run?.wound === 'serious';
         UI.setActionBar([
-          { label: hasGladiator ? 'FIGHT AI' : 'RECRUIT', target: hasGladiator ? '#fightAiBtn' : null, href: hasGladiator ? null : '/recruit.html', className: `btn btn--primary btn--fight ${(!lowHp && hasGladiator) ? 'is-recommended' : ''}`, disabled: !hasGladiator || run.turns <= 0 },
+          { label: hasGladiator ? 'FIGHT AI' : 'RECRUIT', target: hasGladiator ? '#fightAiBtn' : null, href: hasGladiator ? null : '/recruit.html', className: `btn btn--primary btn--fight ${(!lowHp && hasGladiator) ? 'is-recommended' : ''}`, disabled: run.turns <= 0 },
           { label: 'TRAIN', target: '#trainBtn', className: 'btn btn--secondary btn--minor' },
           { label: 'REST', target: '#restBtn', className: `btn btn--secondary btn--minor ${lowHp ? 'is-recommended' : ''}` },
           { label: 'POST CHALLENGE', target: '#postChallengeBtn', className: 'btn btn--tertiary btn--tertiary-small' }
@@ -44,7 +44,7 @@
       }
       function renderRun() {
         ['wound','fame'].forEach((k)=>document.getElementById(k).textContent = run[k]);
-        document.getElementById('stats').textContent = App.formatStats(run.stats); UI.setRun(run); App.disableActions(run.turns <= 0); updateActionBar(); if (App.runEnded(run)) location.href = '/summary.html';
+        document.getElementById('stats').textContent = App.formatStats(run.stats); UI.setRun(run); App.disableActions((Number(run.turns) || 0) <= 0); updateActionBar(); if (App.runEnded(run)) location.href = '/summary.html';
       }
       async function loadRun() { run = await Api.getRun(); if (!run) { location.href = '/index.html'; return; } renderRun(); }
       async function doTrain(){ Api.clearError(); App.disableActions(true); try { await App.showActionOverlay({ title:'Training...', gifPath:'/assets/train.gif', durationMs: 1800 }); const data = await Api.request(`/api/run/${Api.getRunId()}/action/train`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); const m={STR:'Strength',AGI:'Agility',END:'Endurance'}; const improved=m[data.statImproved]||'Stat'; appendTrainingLogEntry({ action:'Train', result:`+1 ${improved}`});} catch (e){Api.showError(e);} finally { App.disableActions(run ? run.turns<=0 : false);} }

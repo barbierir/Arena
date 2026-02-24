@@ -22,14 +22,17 @@
     <footer id="actionBar" class="action-bar"></footer>
     <script src="/api.js"></script><script src="/audio.js"></script><script src="/ui.js"></script><script src="/app.js"></script>
     <script>
-      App.renderNav(); UI.setActionBar([]);
+      App.renderNav(); UI.setActionBar([]); let acceptInFlight = false;
       function challengeIdFromUrl() { const q=new URLSearchParams(location.search); const from=q.get('id')||q.get('challengeId')||''; if (from) return from; const m=location.pathname.match(/^\/challenge\/([^/]+)$/); return m ? decodeURIComponent(m[1]) : ''; }
       function normalizeChallengeInput(v){ return (v || '').split('/').pop().trim(); }
-      function setChallengeView(data) { const box = document.getElementById('challengeView'); if (data.challenge.status === 'OPEN') { box.innerHTML = `<p><strong>Status:</strong> OPEN</p><p><strong>Creator Rating:</strong> ${data.challenge.creatorSnapshot.rating.toFixed(1)}</p>`; document.getElementById('acceptBtn').disabled = false; return; } document.getElementById('acceptBtn').disabled = true; box.innerHTML = data.challenge.status === 'RESOLVED' ? `<p><strong>Status:</strong> RESOLVED</p><p><strong>Winner:</strong> ${data.challenge.result.winnerRunId}</p>` : '<p><strong>Status:</strong> EXPIRED</p>'; }
+      function setChallengeView(data) { const box = document.getElementById('challengeView'); if (data.challenge.status === 'OPEN') { const rating = Number(data.challenge?.creatorSnapshot?.rating); box.innerHTML = `<p><strong>Status:</strong> OPEN</p><p><strong>Creator Rating:</strong> ${Number.isFinite(rating) ? rating.toFixed(1) : '—'}</p>`; document.getElementById('acceptBtn').disabled = false; return; } document.getElementById('acceptBtn').disabled = true; box.innerHTML = data.challenge.status === 'RESOLVED' ? `<p><strong>Status:</strong> RESOLVED</p><p><strong>Winner:</strong> ${data.challenge.result.winnerRunId}</p>` : '<p><strong>Status:</strong> EXPIRED</p>'; }
       async function loadChallenge() { const id = normalizeChallengeInput(document.getElementById('challengeIdInput').value); if (!id) return; Api.clearError(); try { const data = await Api.request(`/api/challenge/${encodeURIComponent(id)}`); setChallengeView(data); } catch (e) { Api.showError(e); } }
       async function acceptChallenge(challengeId) {
         const runId = Api.getRunId(); const playerId = Api.getPlayerId();
         if (!runId || !playerId) return (location.href='/index.html');
+        if (acceptInFlight) return;
+        acceptInFlight = true;
+        document.getElementById('acceptBtn').disabled = true;
         try {
           const data = await Api.request(`/api/challenge/${encodeURIComponent(challengeId)}/accept`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ runId, playerId }) });
           await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', durationMs:15000, fightResult: { outcome: data.result.winnerRunId === runId ? 'win' : 'loss' } });
@@ -38,7 +41,7 @@
           setChallengeView({ challenge: data.challenge });
           if (App.runEnded(data.accepterRun)) location.href = '/summary.html';
           await loadOpenChallenges();
-        } catch (e) { Api.showError(e); }
+        } catch (e) { Api.showError(e); } finally { acceptInFlight = false; }
       }
 
       function renderSharePreview(url) {
@@ -83,7 +86,7 @@
         if (!button) return;
         const challengeId = button.getAttribute('data-challenge-id');
         document.getElementById('challengeIdInput').value = challengeId;
-        loadChallenge().then(() => acceptChallenge(challengeId));
+        acceptChallenge(challengeId);
       });
 
       document.getElementById('loadChallengeBtn').addEventListener('click', loadChallenge);

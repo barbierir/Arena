@@ -38,6 +38,8 @@ function ensureOverlay() {
   return overlay;
 }
 
+let activeActionOverlayTimeout = null;
+
 function showActionOverlay({ title, gifPath, durationMs }) {
   return new Promise((resolve) => {
     const overlay = ensureOverlay();
@@ -55,8 +57,10 @@ function showActionOverlay({ title, gifPath, durationMs }) {
       bar.style.transition = `width ${durationMs}ms linear`;
       bar.style.width = '100%';
     });
-    setTimeout(() => {
+    if (activeActionOverlayTimeout) clearTimeout(activeActionOverlayTimeout);
+    activeActionOverlayTimeout = setTimeout(() => {
       overlay.classList.add('hidden');
+      activeActionOverlayTimeout = null;
       resolve();
     }, durationMs);
   });
