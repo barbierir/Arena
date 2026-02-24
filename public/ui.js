@@ -41,8 +41,8 @@
     hud.innerHTML = `
       <div class="hud-col hud-left">
         <div class="hud-chip"><span>Gold</span><strong id="hudGold">0</strong></div>
-        <div class="hud-chip"><span>Record</span><strong id="hudRecord">0W/0L</strong></div>
-        <div class="hud-chip"><span>Turns</span><strong id="hudTurns">0</strong></div>
+        <div class="hud-chip"><span>Record</span><strong id="hudRecord">Victories 0 | Defeats 0</strong></div>
+        <div class="hud-chip"><span>⏳ Turns remaining:</span><strong id="hudTurns">0</strong></div>
       </div>
       <div class="hud-col hud-center">
         <div class="hud-name" id="hudName">${getGladiatorName()}</div>
@@ -126,7 +126,7 @@
       if (state.prev.gold != null && state.prev.gold !== run.gold) pulse(goldEl.closest('.hud-chip'));
     }
     if (recordEl) {
-      recordEl.textContent = `${run.wins ?? 0}W/${run.losses ?? 0}L`;
+      recordEl.textContent = `Victories ${run.wins ?? 0} | Defeats ${run.losses ?? 0}`;
       if ((state.prev.wins !== undefined && state.prev.wins !== run.wins) || (state.prev.losses !== undefined && state.prev.losses !== run.losses)) pulse(recordEl.closest('.hud-chip'));
     }
     if (document.getElementById('hudTurns')) document.getElementById('hudTurns').textContent = run.turns ?? 0;

@@ -55,7 +55,12 @@
             const data = await Api.request('/api/run/new', { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({}) });
             Api.setPlayerId(data.playerId);
             Api.setRunId(data.runId);
-            location.href = '/recruit.html';
+            const generated = await Api.request(`/api/run/${data.runId}/recruit/generate`, { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: data.playerId }) });
+            if (generated?.candidate?.id) {
+              await Api.request(`/api/run/${data.runId}/recruit/buy`, { method: 'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: data.playerId, candidateId: generated.candidate.id }) });
+              localStorage.setItem('arenaGladiatorName', generated.candidate.name || 'Gladiator');
+            }
+            location.href = '/game.html';
           } catch (error) { Api.showError(error); }
         });
       }
