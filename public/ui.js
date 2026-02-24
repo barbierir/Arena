@@ -49,7 +49,7 @@
     hud.classList.add('hud');
     hud.innerHTML = `
       <div class="hud-col hud-left">
-        <div class="hud-chip"><span>Gold</span><strong id="hudGold">0</strong></div>
+        <div class="hud-chip"><span>🪙 Gold</span><strong id="hudGold">0</strong></div>
         <div class="hud-chip"><span>Record</span><strong id="hudRecord">0 VICTORIES / 0 DEFEATS</strong></div>
         <div class="hud-chip"><span>⏳ Turns remaining:</span><strong id="hudTurns">0</strong></div>
       </div>
