@@ -121,6 +121,44 @@ label {
   width: min(100%, 420px);
 }
 
+
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) 1fr;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 0.8rem;
+}
+
+.gladiator-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.gladiator-gif {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+  image-rendering: pixelated;
+}
+
+.gladiator-fallback {
+  width: 100%;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  color: #ded4c3;
+  padding: 1rem;
+}
+
 .recruit-layout {
   display: grid;
   grid-template-columns: 240px 1fr;
@@ -265,6 +303,10 @@ label {
 }
 
 @media (max-width: 760px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
+
   .recruit-layout {
     grid-template-columns: 1fr;
   }

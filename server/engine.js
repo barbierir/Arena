@@ -143,12 +143,9 @@ function buyCandidate(run, playerId, candidateId) {
   return { run, candidate };
 }
 
-function train(run, statKey) {
+function train(run) {
   ensureActive(run);
   ensureHasGladiator(run);
-  if (!['STR', 'AGI', 'END'].includes(statKey)) {
-    throw new Error('Invalid stat key');
-  }
   if (run.wound === WOUND.SERIOUS) {
     throw new Error('Serious wound cannot train');
   }
@@ -156,11 +153,13 @@ function train(run, statKey) {
   spendTurns(run, TRAIN.TURN_COST);
   spendGold(run, TRAIN.GOLD_COST);
 
+  const stats = ['STR', 'AGI', 'END'];
+  const statKey = stats[randInt(0, stats.length - 1)];
   run.stats[statKey] = Math.min(TRAIN.STAT_CAP, run.stats[statKey] + 1);
   if (run.wound === WOUND.HEALTHY) {
-    return { run, injury: applyInjury(run, INJURY_DISTS.TRAIN_HEALTHY) };
+    return { run, injury: applyInjury(run, INJURY_DISTS.TRAIN_HEALTHY), statImproved: statKey };
   }
-  return { run, injury: applyInjury(run, INJURY_DISTS.TRAIN_LIGHT) };
+  return { run, injury: applyInjury(run, INJURY_DISTS.TRAIN_LIGHT), statImproved: statKey };
 }
 
 function rest(run) {
