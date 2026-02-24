@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Arena - Challenge</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/ui.css" />
   </head>
   <body class="arena-page">
     <main>
@@ -17,8 +18,8 @@
           <input id="challengeIdInput" />
         </label>
         <div class="row">
-          <button id="loadChallengeBtn">Load Challenge</button>
-          <button id="acceptBtn" disabled>Accept (cost 1 turn)</button>
+          <button class="btn-secondary" id="loadChallengeBtn">Load Challenge</button>
+          <button class="btn-primary" id="acceptBtn" disabled>Accept (cost 1 turn)</button>
         </div>
 
         <div id="challengeView" class="card inner">No challenge loaded.</div>
@@ -28,6 +29,8 @@
     </main>
 
     <script src="/api.js"></script>
+    <script src="/audio.js"></script>
+    <script src="/ui.js"></script>
     <script src="/app.js"></script>
     <script>
       App.renderNav();
@@ -127,6 +130,7 @@
       (function init() {
         const id = challengeIdFromUrl();
         document.getElementById('challengeIdInput').value = id;
+        Api.getRun().then((run) => run && UI.setRun(run)).catch(() => {});
         if (id) loadChallenge();
       })();
     </script>

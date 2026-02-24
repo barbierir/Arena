@@ -33,6 +33,25 @@ npm run dev
 
 Then open `http://localhost:3000`.
 
+## UX Upgrade Phase
+
+- A persistent HUD now appears on all pages with gold, fighter identity, inferred HP bar, stat chips, record, and settings toggles.
+- **Audio** and **Reduce Motion** preferences persist in `localStorage`.
+- Combat/training/rest flows now use upgraded overlays, toasts, and richer fight playback visuals while preserving backend rules.
+
+### Optional assets (safe fallbacks)
+
+The UI tries to load these files and gracefully degrades if they are missing:
+
+- `public/gifs/train.gif`, `public/gifs/rest.gif`
+- `public/gifs/fight-left.gif`, `public/gifs/fight-right.gif`
+- `public/gifs/recruit-1.gif`, `public/gifs/recruit-2.gif`, `public/gifs/recruit-3.gif`
+- `public/images/bg-arena.jpg`
+- `public/gifs/crowd-loop.gif`
+- `public/audio/crowd-loop.mp3`, `public/audio/hit.mp3`, `public/audio/coin.mp3`, `public/audio/click.mp3`
+
+Current implementation uses existing `/public/assets/*` placeholders where available.
+
 
 ## Assets setup
 

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Arena - Recruit</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/ui.css" />
   </head>
   <body class="arena-page">
     <main>
@@ -14,9 +15,9 @@
         <h1>Recruit Gladiator</h1>
         <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span></p>
         <div class="row">
-          <button id="generateBtn">Generate</button>
-          <button id="skipBtn">Skip (cost 1 turn)</button>
-          <button id="buyBtn" disabled>Buy</button>
+          <button class="btn-primary" id="generateBtn">Generate</button>
+          <button class="btn-secondary" id="skipBtn">Skip (cost 1 turn)</button>
+          <button class="btn-primary" id="buyBtn" disabled>Buy</button>
         </div>
 
         <div class="recruit-layout">
@@ -31,6 +32,8 @@
     </main>
 
     <script src="/api.js"></script>
+    <script src="/audio.js"></script>
+    <script src="/ui.js"></script>
     <script src="/app.js"></script>
     <script>
       App.renderNav();
@@ -58,6 +61,7 @@
       function renderRun() {
         document.getElementById('turns').textContent = run.turns;
         document.getElementById('gold').textContent = run.gold;
+        UI.setRun(run);
         setActionDisabled(run.turns <= 0);
         if (App.runEnded(run)) {
           location.href = '/summary.html';
@@ -76,8 +80,18 @@
         card.innerHTML = `
           <h3>${currentCandidate.name}</h3>
           <p>${App.formatStats(currentCandidate.stats)}</p>
+          <p><strong>Trait:</strong> ${UI.traitFromStats(currentCandidate.stats)}</p>
           <p><strong>Price:</strong> ${currentCandidate.price}</p>
+          <p class="muted">Rating ${currentCandidate.rating.toFixed(1)}</p>
         `;
+        const s = currentCandidate.stats;
+        const reduced = UI.getSettings().reduceMotion;
+        UI.animateCount(card.querySelector('h3'), 0, 0, 0, true);
+        card.querySelector('p').innerHTML = `STR <span id="strN">0</span> / AGI <span id="agiN">0</span> / END <span id="endN">0</span> / Talent <span id="talN">0</span>`;
+        UI.animateCount(card.querySelector('#strN'), 0, s.STR, 700, reduced);
+        UI.animateCount(card.querySelector('#agiN'), 0, s.AGI, 700, reduced);
+        UI.animateCount(card.querySelector('#endN'), 0, s.END, 700, reduced);
+        UI.animateCount(card.querySelector('#talN'), 0, s.Talent, 700, reduced);
         buyBtn.disabled = false;
       }
 
@@ -102,6 +116,7 @@
           currentCandidate = data.candidate;
           renderCandidate();
           await refreshRun();
+          UI.showToast('New Challenger arrived!', 'success');
         } catch (error) {
           Api.showError(error);
         }
@@ -136,8 +151,10 @@
           });
           run = data.run;
           currentCandidate = null;
+          localStorage.setItem('arenaGladiatorName', data.candidate.name);
           renderRun();
           renderCandidate();
+          UI.showToast('Gladiator recruited', 'success');
           location.href = '/game.html';
         } catch (error) {
           Api.showError(error);
@@ -149,6 +166,13 @@
         try {
           await refreshRun();
           swapRecruitGif();
+          const wrap = document.querySelector('.recruit-gif-wrap');
+          const intro = document.createElement('div');
+          intro.className = 'recruit-intro';
+          intro.textContent = 'New Challenger';
+          wrap.style.position = 'relative';
+          wrap.appendChild(intro);
+          setTimeout(() => intro.remove(), 1400);
         } catch (error) {
           Api.showError(error);
         }
