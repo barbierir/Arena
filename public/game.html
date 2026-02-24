@@ -5,10 +5,10 @@
     <header id="hud" class="hud"></header>
     <main class="arcade-main"><div class="panel panel--main"><nav></nav>
       <h1>Arcade Hub</h1>
-      <div class="game-layout arcade-grid">
-        <div class="card inner gladiator-card"><img id="gladiatorGif" src="/assets/gladiator.gif" alt="Gladiator animation" class="gladiator-gif" /><div id="gladiatorFallback" class="gladiator-fallback hidden">Gladiator enters soon.</div></div>
+      <div class="game-layout arcade-grid hub-grid">
+        <div class="card inner gladiator-card arcade-frame"><img id="gladiatorGif" src="/assets/gladiator.gif" alt="Gladiator animation" class="gladiator-gif" /><div id="gladiatorFallback" class="gladiator-fallback hidden">Gladiator enters soon.</div></div>
         <div>
-          <div class="stat-grid compact-stats">
+          <div class="stat-grid compact-stats chip-grid">
             <div class="card inner"><strong>Stats</strong><div id="stats">-</div></div>
             <div class="card inner"><strong>Wound</strong><div id="wound">-</div></div>
             <div class="card inner"><strong>Fame</strong><div id="fame">-</div></div>
@@ -42,10 +42,10 @@
         const hasGladiator = !!(run?.roster && run.roster.length);
         const lowHp = run?.wound === 'serious';
         UI.setActionBar([
-          { label: hasGladiator ? 'FIGHT AI' : 'RECRUIT', target: hasGladiator ? '#fightAiBtn' : null, href: hasGladiator ? null : '/recruit.html', className: `btn--primary-arcade ${(!lowHp && hasGladiator) ? 'is-recommended' : ''}`, disabled: !hasGladiator || run.turns <= 0 },
-          { label: 'TRAIN', target: '#trainBtn', className: 'btn-secondary' },
-          { label: 'REST', target: '#restBtn', className: `btn-secondary ${lowHp ? 'is-recommended' : ''}` },
-          { label: 'POST CHALLENGE', target: '#postChallengeBtn', className: 'btn-tertiary' }
+          { label: hasGladiator ? 'FIGHT AI' : 'RECRUIT', target: hasGladiator ? '#fightAiBtn' : null, href: hasGladiator ? null : '/recruit.html', className: `btn--fight ${(!lowHp && hasGladiator) ? 'is-recommended' : ''}`, disabled: !hasGladiator || run.turns <= 0 },
+          { label: 'TRAIN', target: '#trainBtn', className: 'btn-secondary btn--minor' },
+          { label: 'REST', target: '#restBtn', className: `btn-secondary btn--minor ${lowHp ? 'is-recommended' : ''}` },
+          { label: 'POST CHALLENGE', target: '#postChallengeBtn', className: 'btn-tertiary btn--tertiary-small' }
         ]);
       }
       function renderRun() {
@@ -58,7 +58,7 @@
       document.getElementById('trainBtn').addEventListener('click', doTrain);
       document.getElementById('gladiatorGif').addEventListener('error', () => { document.getElementById('gladiatorGif').classList.add('hidden'); document.getElementById('gladiatorFallback').classList.remove('hidden'); });
       document.getElementById('restBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { await App.showActionOverlay({ title:'Resting...', gifPath:'/assets/rest.gif', durationMs: 1500 }); const data = await Api.request(`/api/run/${Api.getRunId()}/action/rest`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); setResult('Rest completed.'); } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
-      document.getElementById('fightAiBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty:'normal' }) }); await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', leftName: localStorage.getItem('arenaGladiatorName') || 'You', rightName:'Arena AI', durationMs: 18000, onSkip: ()=>setResult('Combat playback skipped.') }); run = data.run; renderRun(); const status = data.fight.result === 'win' ? 'VICTORY' : 'DEFEAT'; renderResultsPanel(status, `Injury: ${data.fight.injury}`); } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
+      document.getElementById('fightAiBtn').addEventListener('click', async () => { Api.clearError(); App.disableActions(true); try { const data = await Api.request(`/api/run/${Api.getRunId()}/action/fightAI`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId(), difficulty:'normal' }) }); await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', leftName: localStorage.getItem('arenaGladiatorName') || 'You', rightName:'Arena AI', durationMs: 18000, rewards: { gold: data.fight.gold || 0, fame: data.fight.fame || 0 }, onSkip: ()=>setResult('Combat playback skipped.') }); run = data.run; renderRun(); const status = data.fight.result === 'win' ? 'VICTORY' : 'DEFEAT'; renderResultsPanel(status, `Injury: ${data.fight.injury}`); } catch (e) { Api.showError(e); } finally { App.disableActions(run ? run.turns<=0 : false);} });
       document.getElementById('postChallengeBtn').addEventListener('click', async () => { try { const data = await Api.request(`/api/run/${Api.getRunId()}/challenge/post`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId: Api.getPlayerId() }) }); run = data.run; renderRun(); document.getElementById('shareLink').value = `${location.origin}/challenge/${encodeURIComponent(data.challengeId)}`; document.getElementById('shareBox').classList.remove('hidden'); } catch (e) { Api.showError(e); } });
       document.getElementById('copyShareBtn').addEventListener('click', async () => { try { await Api.copyText(document.getElementById('shareLink').value); } catch {} });
       (async function init(){ if (!ensureSession()) return; loadGameState(); renderTrainingLog(); await loadRun(); if (localStorage.getItem('arenaInstantFight') === 'true') { localStorage.removeItem('arenaInstantFight'); setTimeout(() => document.getElementById('fightAiBtn').click(), 150); } })();
