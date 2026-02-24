@@ -41,7 +41,6 @@ function mapError(error) {
   if (message === 'Not enough turns') return errPayload('NOT_ENOUGH_TURNS', message, 400);
   if (message === 'Not enough gold') return errPayload('NOT_ENOUGH_GOLD', message, 400);
   if (message === 'Candidate not found') return errPayload('CANDIDATE_NOT_FOUND', message, 404);
-  if (message === 'Invalid stat key') return errPayload('INVALID_STAT', message, 400);
   if (message === 'No gladiator recruited') return errPayload('NO_GLADIATOR', message, 400);
   if (message === 'Serious wound cannot train') return errPayload('CANNOT_TRAIN_SERIOUS_WOUND', message, 400);
   if (message === 'Run is not active') return errPayload('RUN_NOT_ACTIVE', message, 400);
@@ -113,13 +112,10 @@ app.post('/api/run/:runId/recruit/buy', (req, res) => {
 
 app.post('/api/run/:runId/action/train', (req, res) => {
   try {
-    const { playerId, stat } = req.body;
-    const keyMap = { str: 'STR', agi: 'AGI', end: 'END' };
-    const statKey = keyMap[stat];
-
+    const { playerId } = req.body;
     const run = getRunOrThrow(req.params.runId, playerId);
-    const result = train(run, statKey);
-    res.json({ run: result.run, injury: result.injury });
+    const result = train(run);
+    res.json({ run: result.run, injury: result.injury, statImproved: result.statImproved });
   } catch (error) {
     sendError(res, error);
   }

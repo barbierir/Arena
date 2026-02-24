@@ -13,14 +13,25 @@
 
       <section class="card panel">
         <h1>Game</h1>
-        <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span> | <strong>Wound:</strong> <span id="wound">-</span></p>
-        <p><strong>Record:</strong> <span id="record">-</span> | <strong>Fame:</strong> <span id="fame">-</span></p>
-        <p><strong>Stats:</strong> <span id="stats">-</span></p>
+        <div class="game-layout">
+          <div class="card inner gladiator-card" aria-label="Gladiator card">
+            <img
+              id="gladiatorGif"
+              src="/gifs/gladiator-idle.gif"
+              alt="Gladiator idle animation"
+              class="gladiator-gif"
+            />
+            <div id="gladiatorFallback" class="gladiator-fallback hidden">(Gladiator animation placeholder)</div>
+          </div>
+          <div>
+            <p><strong>Turns:</strong> <span id="turns">-</span> | <strong>Gold:</strong> <span id="gold">-</span> | <strong>Wound:</strong> <span id="wound">-</span></p>
+            <p><strong>Record:</strong> <span id="record">-</span> | <strong>Fame:</strong> <span id="fame">-</span></p>
+            <p><strong>Stats:</strong> <span id="stats">-</span></p>
+          </div>
+        </div>
 
         <div class="row">
-          <button class="btn-secondary" data-action-btn id="trainStrBtn">Train STR</button>
-          <button class="btn-secondary" data-action-btn id="trainAgiBtn">Train AGI</button>
-          <button class="btn-secondary" data-action-btn id="trainEndBtn">Train END</button>
+          <button class="btn-secondary" data-action-btn id="trainBtn" title="Training randomly improves Strength, Agility, or Endurance.">Train</button>
         </div>
         <div class="row">
           <button class="btn-secondary" data-action-btn id="restBtn">Rest</button>
@@ -92,13 +103,13 @@
           ${nextActions ? `<div class="row"><button class="btn-secondary" id="nextTrain">Train</button><button class="btn-secondary" id="nextRest">Rest</button><button class="btn-primary" id="nextFight">Fight Again</button><button class="btn-secondary" id="nextRecruit">Recruit</button></div>` : ''}
         `;
         const bind = (id, cb) => { const el = document.getElementById(id); if (el) el.onclick = cb; };
-        bind('nextTrain', () => document.getElementById('trainStrBtn').click());
+        bind('nextTrain', () => document.getElementById('trainBtn').click());
         bind('nextRest', () => document.getElementById('restBtn').click());
         bind('nextFight', () => document.getElementById('fightAiBtn').click());
         bind('nextRecruit', () => location.href = '/recruit.html');
       }
 
-      async function doTrain(stat) {
+      async function doTrain() {
         Api.clearError();
         App.disableActions(true);
         try {
@@ -106,12 +117,14 @@
           const data = await Api.request(`/api/run/${Api.getRunId()}/action/train`, {
             method: 'POST',
             headers: Api.jsonHeaders(),
-            body: JSON.stringify({ playerId: Api.getPlayerId(), stat })
+            body: JSON.stringify({ playerId: Api.getPlayerId() })
           });
           run = data.run;
           renderRun();
-          setResult(`Training complete. Injury result: ${data.injury}.`);
-          UI.showToast('Training Complete', 'success');
+          const statMap = { STR: 'Strength', AGI: 'Agility', END: 'Endurance' };
+          const improved = statMap[data.statImproved] || data.statImproved || 'Stat';
+          setResult(`Training complete. +1 ${improved}. Injury result: ${data.injury}.`);
+          UI.showToast(`Training success: +1 ${improved}`, 'success');
           if (data.injury !== 'healthy') UI.showToast(`Injury: ${data.injury}`, 'warn');
         } catch (error) {
           Api.showError(error);
@@ -120,9 +133,12 @@
         }
       }
 
-      document.getElementById('trainStrBtn').addEventListener('click', () => doTrain('str'));
-      document.getElementById('trainAgiBtn').addEventListener('click', () => doTrain('agi'));
-      document.getElementById('trainEndBtn').addEventListener('click', () => doTrain('end'));
+      document.getElementById('trainBtn').addEventListener('click', () => doTrain());
+
+      document.getElementById('gladiatorGif').addEventListener('error', () => {
+        document.getElementById('gladiatorGif').classList.add('hidden');
+        document.getElementById('gladiatorFallback').classList.remove('hidden');
+      });
 
       document.getElementById('restBtn').addEventListener('click', async () => {
         Api.clearError();

@@ -39,6 +39,8 @@ Then open `http://localhost:3000`.
 - **Audio** and **Reduce Motion** preferences persist in `localStorage`.
 - Combat/training/rest flows now use upgraded overlays, toasts, and richer fight playback visuals while preserving backend rules.
 
+Unified training now appears as a single **Train** action on the Game page, and each successful training randomly improves exactly one of Strength, Agility, or Endurance while keeping existing costs, timing, injuries, and overlays. The Game page also includes a responsive gladiator card that attempts to load `/gifs/gladiator-idle.gif` and cleanly falls back to placeholder text if the GIF is not present.
+
 ### Optional assets (safe fallbacks)
 
 The UI tries to load these files and gracefully degrades if they are missing:
