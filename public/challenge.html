@@ -8,7 +8,16 @@
       <div class="row"><button class="btn btn--primary" id="createBtn">CREATE CHALLENGE LINK</button><button class="btn btn--secondary" id="acceptBtn" disabled>ACCEPT CHALLENGE</button></div>
       <label>Challenge ID / Link:<input id="challengeIdInput" /></label>
       <div class="row"><button class="btn btn--secondary" id="loadChallengeBtn">LOAD</button><button class="btn btn--primary hidden" id="copyBtn">COPY</button></div>
-      <div id="challengeView" class="card inner">No challenge loaded.</div><p id="result" class="muted"></p><p id="error" class="error"></p>
+      <div id="challengePreview" class="card inner challenge-preview hidden"></div>
+      <div id="challengeView" class="card inner">No challenge loaded.</div>
+
+      <section class="card inner open-challenges-panel">
+        <h2>Open Challenges</h2>
+        <div id="openChallengesError" class="error"></div>
+        <div id="openChallengesList" class="open-challenges-list muted">Loading open challenges...</div>
+      </section>
+
+      <p id="result" class="muted"></p><p id="error" class="error"></p>
     </div></main>
     <footer id="actionBar" class="action-bar"></footer>
     <script src="/api.js"></script><script src="/audio.js"></script><script src="/ui.js"></script><script src="/app.js"></script>
@@ -17,12 +26,70 @@
       function challengeIdFromUrl() { const q=new URLSearchParams(location.search); const from=q.get('id')||q.get('challengeId')||''; if (from) return from; const m=location.pathname.match(/^\/challenge\/([^/]+)$/); return m ? decodeURIComponent(m[1]) : ''; }
       function normalizeChallengeInput(v){ return (v || '').split('/').pop().trim(); }
       function setChallengeView(data) { const box = document.getElementById('challengeView'); if (data.challenge.status === 'OPEN') { box.innerHTML = `<p><strong>Status:</strong> OPEN</p><p><strong>Creator Rating:</strong> ${data.challenge.creatorSnapshot.rating.toFixed(1)}</p>`; document.getElementById('acceptBtn').disabled = false; return; } document.getElementById('acceptBtn').disabled = true; box.innerHTML = data.challenge.status === 'RESOLVED' ? `<p><strong>Status:</strong> RESOLVED</p><p><strong>Winner:</strong> ${data.challenge.result.winnerRunId}</p>` : '<p><strong>Status:</strong> EXPIRED</p>'; }
-      async function loadChallenge() { const id = normalizeChallengeInput(document.getElementById('challengeIdInput').value); if (!id) return; try { const data = await Api.request(`/api/challenge/${encodeURIComponent(id)}`); setChallengeView(data); } catch (e) { Api.showError(e); } }
+      async function loadChallenge() { const id = normalizeChallengeInput(document.getElementById('challengeIdInput').value); if (!id) return; Api.clearError(); try { const data = await Api.request(`/api/challenge/${encodeURIComponent(id)}`); setChallengeView(data); } catch (e) { Api.showError(e); } }
+      async function acceptChallenge(challengeId) {
+        const runId = Api.getRunId(); const playerId = Api.getPlayerId();
+        if (!runId || !playerId) return (location.href='/index.html');
+        try {
+          const data = await Api.request(`/api/challenge/${encodeURIComponent(challengeId)}/accept`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ runId, playerId }) });
+          await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', durationMs:15000 });
+          document.getElementById('result').textContent = `Winner run: ${data.result.winnerRunId}`;
+          setChallengeView({ challenge: data.challenge });
+          if (App.runEnded(data.accepterRun)) location.href = '/summary.html';
+          await loadOpenChallenges();
+        } catch (e) { Api.showError(e); }
+      }
+
+      function renderSharePreview(url) {
+        const preview = document.getElementById('challengePreview');
+        preview.classList.remove('hidden');
+        preview.innerHTML = `<img src="/assets/gladiator.gif" alt="Gladiator" class="challenge-preview__gif" /><div><p><strong>Share this challenge link:</strong></p><p class="challenge-preview__url">${url}</p></div>`;
+      }
+
+      function formatOpenTime(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleString();
+      }
+
+      function renderOpenChallenges(items) {
+        const list = document.getElementById('openChallengesList');
+        if (!items.length) {
+          list.innerHTML = '<p class="muted">No open challenges right now.</p>';
+          return;
+        }
+        list.innerHTML = items.map((item) => {
+          const when = formatOpenTime(item.createdAt);
+          return `<div class="open-challenge-row"><div><strong>${item.challengerNameOrId || item.id.slice(0, 8)}</strong>${when ? `<div class="muted">${when}</div>` : ''}</div><button class="btn btn--secondary open-accept-btn" data-challenge-id="${item.id}">Accept</button></div>`;
+        }).join('');
+      }
+
+      async function loadOpenChallenges() {
+        const errorNode = document.getElementById('openChallengesError');
+        errorNode.textContent = '';
+        try {
+          const items = await Api.listOpenChallenges();
+          renderOpenChallenges(items);
+        } catch (e) {
+          errorNode.textContent = 'Could not load open challenges.';
+          document.getElementById('openChallengesList').innerHTML = '<p class="muted">No open challenges right now.</p>';
+        }
+      }
+
+      document.getElementById('openChallengesList').addEventListener('click', (event) => {
+        const button = event.target.closest('.open-accept-btn');
+        if (!button) return;
+        const challengeId = button.getAttribute('data-challenge-id');
+        document.getElementById('challengeIdInput').value = challengeId;
+        loadChallenge().then(() => acceptChallenge(challengeId));
+      });
+
       document.getElementById('loadChallengeBtn').addEventListener('click', loadChallenge);
       document.getElementById('copyBtn').addEventListener('click', async ()=>{ try { await Api.copyText(document.getElementById('challengeIdInput').value); UI.showToast('Copied', 'success'); } catch {} });
-      document.getElementById('createBtn').addEventListener('click', async () => { const runId=Api.getRunId(); const playerId=Api.getPlayerId(); if (!runId || !playerId) return (location.href='/index.html'); try { const data = await Api.request(`/api/run/${runId}/challenge/post`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId }) }); const url = `${location.origin}/challenge/${encodeURIComponent(data.challengeId)}`; document.getElementById('challengeIdInput').value = url; document.getElementById('copyBtn').classList.remove('hidden'); document.getElementById('result').textContent = 'Challenge link created.'; UI.setRun(data.run); } catch (e) { Api.showError(e); } });
-      document.getElementById('acceptBtn').addEventListener('click', async () => { const challengeId = normalizeChallengeInput(document.getElementById('challengeIdInput').value); const runId = Api.getRunId(); const playerId = Api.getPlayerId(); if (!runId || !playerId) return (location.href='/index.html'); try { const data = await Api.request(`/api/challenge/${encodeURIComponent(challengeId)}/accept`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ runId, playerId }) }); await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', durationMs:15000 }); document.getElementById('result').textContent = `Winner run: ${data.result.winnerRunId}`; setChallengeView({ challenge: data.challenge }); if (App.runEnded(data.accepterRun)) location.href = '/summary.html'; } catch (e) { Api.showError(e); } });
-      (function init(){ const id=challengeIdFromUrl(); document.getElementById('challengeIdInput').value=id; Api.getRun().then((run)=>run && UI.setRun(run)).catch(()=>{}); if (id) loadChallenge(); })();
+      document.getElementById('createBtn').addEventListener('click', async () => { const runId=Api.getRunId(); const playerId=Api.getPlayerId(); if (!runId || !playerId) return (location.href='/index.html'); try { const data = await Api.request(`/api/run/${runId}/challenge/post`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ playerId }) }); const url = `${location.origin}/share/challenge/${encodeURIComponent(data.challengeId)}`; document.getElementById('challengeIdInput').value = url; document.getElementById('copyBtn').classList.remove('hidden'); document.getElementById('result').textContent = 'Challenge link created.'; UI.setRun(data.run); renderSharePreview(url); await loadOpenChallenges(); } catch (e) { Api.showError(e); } });
+      document.getElementById('acceptBtn').addEventListener('click', async () => { const challengeId = normalizeChallengeInput(document.getElementById('challengeIdInput').value); if (!challengeId) return; await acceptChallenge(challengeId); });
+      (function init(){ const id=challengeIdFromUrl(); document.getElementById('challengeIdInput').value=id; Api.getRun().then((run)=>run && UI.setRun(run)).catch(()=>{}); if (id) loadChallenge(); loadOpenChallenges(); })();
     </script>
   </body>
 </html>

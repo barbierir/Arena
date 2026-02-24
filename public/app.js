@@ -4,7 +4,7 @@ function navMarkup() {
     <a href="/recruit.html">Recruit</a>
     <a href="/game.html">Game</a>
     <a href="/challenge.html">Challenge</a>
-    <a href="/summary.html">Summary</a>
+    <a href="/summary.html">Global Ranking</a>
   `;
 }
 
