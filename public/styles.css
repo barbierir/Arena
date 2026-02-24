@@ -14,6 +14,21 @@ body {
   background: linear-gradient(rgba(22, 15, 10, 0.7), rgba(10, 9, 8, 0.82)), url('/assets/bg-arena.png') center / cover fixed;
 }
 
+
+
+body.arcade-mode {
+  position: relative;
+  isolation: isolate;
+}
+
+body.arcade-mode::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.44));
+}
 body.index-page {
   display: flex;
   align-items: center;

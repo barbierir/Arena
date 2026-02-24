@@ -74,13 +74,14 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
     const intervals = [];
 
     panel.innerHTML = `
-      <div class="fight-hud"><div class="fight-timer" id="fxTimer">${Math.ceil(durationMs / 1000)}</div><div class="fight-title">${leftName} vs ${rightName}</div><button id="fxSkipBtn" class="btn-secondary fx-skip">Skip</button></div>
+      <div class="fight-hud"><div class="fight-timer" id="fxTimer">${Math.ceil(durationMs / 1000)}</div><div class="fight-title">${leftName} vs ${rightName}</div><button id="fxSkipBtn" class="btn btn--tertiary fx-skip">Skip</button></div>
       <div id="fxFightStage" class="fx-fight-stage arcade-stage">
         <img class="fx-fighter left" src="${leftGif}" alt="Left fighter" />
         <img class="fx-fighter right" src="${rightGif}" alt="Right fighter" />
         <div class="hp-dock hp-left"><span>${leftName}</span><div class="mini-hp"><i id="hpLeft"></i></div></div>
         <div class="hp-dock hp-right"><span>${rightName}</span><div class="mini-hp"><i id="hpRight"></i></div></div>
         <div class="crowd-meter crowd-meter--overlay"><span>HYPE</span><div><i id="crowdMeterFill"></i></div></div>
+        <div id="announcer" class="announcer" aria-live="polite"></div>
       </div>
       <div id="fxResult" class="hidden"></div>
     `;
@@ -95,6 +96,16 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
     let leftHp = 100;
     let rightHp = 100;
     const startedAt = Date.now();
+    let hitStreak = { side: null, count: 0, lastAt: 0 };
+    const lowHpAnnounced = { left: false, right: false };
+    let crowdTier = 0;
+    let endedByKO = false;
+
+    if (window.UI) {
+      UI.resetAnnouncer();
+      UI.announce('ARENA READY!', 'normal', 900);
+      UI.announce('FIGHT!', 'high', 880);
+    }
 
     function closeAnd(fn) { overlay.classList.add('hidden'); if (fn) fn(); resolve(); }
 
@@ -105,6 +116,12 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       intervals.forEach(clearInterval);
       if (skipped && typeof onSkip === 'function') onSkip();
       const didWin = rightHp <= leftHp;
+      if (window.UI) {
+        if (endedByKO) UI.announce('KNOCKOUT!', 'high', 1050);
+        else UI.announce('TIME!', 'high', 920);
+        UI.announce(didWin ? 'VICTORY!' : 'DEFEAT!', 'high', 980);
+      }
+      if (window.AudioManager && didWin) AudioManager.play('coin');
       const goldReward = Number(rewards.gold || 0);
       const fameReward = Number(rewards.fame || 0);
       resultEl.classList.remove('hidden');
@@ -112,8 +129,8 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
         <div class="results-panel overlay-results">
           <h3>${didWin ? 'VICTORY' : 'DEFEAT'}</h3>
           <p class="reward-line">Gold: <strong id="rewardGold">0</strong> • Fame: <strong id="rewardFame">0</strong></p>
-          <div class="row"><button id="fxFightAgain" class="btn--fight">FIGHT AGAIN</button><button id="fxTrain" class="btn-secondary">TRAIN</button><button id="fxRest" class="btn-secondary">REST</button></div>
-          <button id="fxClose" class="btn-tertiary">Close</button>
+          <div class="row"><button id="fxFightAgain" class="btn btn--primary btn--fight">FIGHT AGAIN</button><button id="fxTrain" class="btn btn--secondary">TRAIN</button><button id="fxRest" class="btn btn--secondary">REST</button></div>
+          <button id="fxClose" class="btn btn--tertiary">Close</button>
         </div>
       `;
       if (window.UI) {
@@ -143,29 +160,55 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       hpLeft.style.width = `${leftHp}%`;
       hpRight.style.width = `${rightHp}%`;
       if (window.UI) UI.spawnDamageNumber(side, dmg, crit);
-      if (crit) {
-        const c = document.createElement('div');
-        c.className = 'crit-callout';
-        c.textContent = 'CRITICAL!';
-        panel.appendChild(c);
-        setTimeout(() => c.remove(), 520);
-      }
       if (!reduceMotion && window.UI) UI.screenShake(140, crit ? 7 : 4);
       const now = Date.now();
       if (window.AudioManager && now - lastHit > 180) {
         AudioManager.play('hit');
         lastHit = now;
       }
+
+      if (now - hitStreak.lastAt <= 1200 && hitStreak.side === side) {
+        hitStreak.count += 1;
+      } else {
+        hitStreak = { side, count: 1, lastAt: now };
+      }
+      hitStreak.lastAt = now;
+
+      if (window.UI) {
+        if (crit) {
+          UI.announce(Math.random() > 0.5 ? 'CRITICAL HIT!' : 'DEVASTATING!', 'accent', 820);
+          if (window.AudioManager) AudioManager.play('coin');
+        }
+        if (hitStreak.count >= 2 && hitStreak.count <= 5) {
+          UI.announce(`COMBO x${hitStreak.count}`, 'normal', 720);
+        }
+      }
+
       hype = Math.min(100, hype + (crit ? 18 : 10));
       meter.style.width = `${hype}%`;
-      if (hype > 70 && Math.random() > 0.65) {
-        const tag = document.createElement('div');
-        tag.className = 'hype-callout';
-        tag.textContent = 'CROWD ROARS!';
-        panel.appendChild(tag);
-        setTimeout(() => tag.remove(), 500);
+      if (window.UI) {
+        if (hype >= 92 && crowdTier < 2) {
+          crowdTier = 2;
+          UI.announce('BLOODLUST!', 'high', 980);
+        } else if (hype >= 72 && crowdTier < 1) {
+          crowdTier = 1;
+          UI.announce('THE CROWD ROARS!', 'accent', 860);
+        }
       }
-      if (leftHp === 0 || rightHp === 0) end(false);
+
+      if (leftHp <= 25 && !lowHpAnnounced.left && window.UI) {
+        lowHpAnnounced.left = true;
+        UI.announce('ON THE ROPES!', 'accent', 760);
+      }
+      if (rightHp <= 25 && !lowHpAnnounced.right && window.UI) {
+        lowHpAnnounced.right = true;
+        UI.announce('ON THE ROPES!', 'accent', 760);
+      }
+
+      if (leftHp === 0 || rightHp === 0) {
+        endedByKO = true;
+        end(false);
+      }
     }, reduceMotion ? 900 : 620));
 
     intervals.push(setInterval(() => {

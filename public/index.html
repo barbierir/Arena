@@ -17,7 +17,7 @@
         <div class="row" id="startActions"></div>
         <p id="arenaHint" class="arena-hint hidden" aria-hidden="true">Enter the Arena</p>
         <p id="status" class="muted"></p>
-        <button id="detailsToggle" class="btn-secondary hidden">Details</button>
+        <button id="detailsToggle" class="btn btn--tertiary hidden">Details</button>
         <p id="savedId" class="muted hidden"></p>
         <p id="error" class="error"></p>
       </div>
@@ -40,11 +40,11 @@
         const hasRun = !!run;
         const hasGladiator = hasRun && run.roster && run.roster.length > 0;
         const arenaHint = document.getElementById('arenaHint');
-        const startButtonClass = hasRun ? 'btn-secondary start-new-btn' : 'btn--primary-arcade start-new-btn start-new-btn--primary';
+        const startButtonClass = hasRun ? 'btn btn--secondary start-new-btn' : 'btn btn--secondary start-new-btn start-new-btn--primary';
         startActions.innerHTML = `
-          ${hasRun ? '<button class="btn--primary-arcade" id="continueBtn">Continue</button>' : ''}
+          ${hasRun ? '<button class="btn btn--primary" id="continueBtn">Continue</button>' : ''}
           <button class="${startButtonClass}" id="newRunBtn">Start New Game</button>
-          ${hasGladiator ? '<button class="btn-primary-alt" id="instantFightBtn">Instant Fight</button>' : ''}
+          ${hasGladiator ? '<button class="btn btn--secondary" id="instantFightBtn">Instant Fight</button>' : ''}
         `;
         arenaHint.classList.toggle('hidden', hasRun);
         arenaHint.setAttribute('aria-hidden', hasRun ? 'true' : 'false');
