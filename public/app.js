@@ -62,8 +62,22 @@ function showActionOverlay({ title, gifPath, durationMs }) {
   });
 }
 
-function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, leftName = 'You', rightName = 'Rival', rewards = {} }) {
+let activeFightPlayback = null;
+
+function resolveOutcome(fightResult) {
+  if (!fightResult) return null;
+  if (typeof fightResult.result === 'string') return fightResult.result.toLowerCase();
+  if (typeof fightResult.outcome === 'string') return fightResult.outcome.toLowerCase();
+  if (typeof fightResult.winner === 'string') {
+    if (fightResult.winner === 'A' || fightResult.winner === 'left' || fightResult.winner === 'player') return 'win';
+    if (fightResult.winner === 'B' || fightResult.winner === 'right' || fightResult.winner === 'opponent') return 'loss';
+  }
+  return null;
+}
+
+function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, leftName = 'You', rightName = 'Rival', rewards = {}, fightResult = null }) {
   return new Promise((resolve) => {
+    if (activeFightPlayback && typeof activeFightPlayback.cleanup === 'function') activeFightPlayback.cleanup();
     const overlay = ensureOverlay();
     const panel = overlay.querySelector('.fx-panel');
     const reduceMotion = window.UI && UI.getSettings().reduceMotion;
@@ -93,6 +107,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
     const hpRight = panel.querySelector('#hpRight');
     const meter = panel.querySelector('#crowdMeterFill');
     const timerEl = panel.querySelector('#fxTimer');
+    const authoritativeOutcome = resolveOutcome(fightResult);
     let leftHp = 100;
     let rightHp = 100;
     const startedAt = Date.now();
@@ -107,7 +122,34 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       UI.announce('FIGHT!', 'high', 880);
     }
 
-    function closeAnd(fn) { overlay.classList.add('hidden'); if (fn) fn(); resolve(); }
+    function closeAnd(fn) {
+      overlay.classList.add('hidden');
+      activeFightPlayback = null;
+      if (fn) fn();
+      resolve({
+        authoritativeOutcome,
+        overlayOutcome: resultEl.dataset.outcome || null,
+        leftHp,
+        rightHp
+      });
+    }
+
+    function cleanup() {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      intervals.forEach(clearInterval);
+      activeFightPlayback = null;
+      overlay.classList.add('hidden');
+      resolve({
+        authoritativeOutcome,
+        overlayOutcome: null,
+        leftHp,
+        rightHp
+      });
+    }
+
+    activeFightPlayback = { cleanup };
 
     function end(skipped) {
       if (done) return;
@@ -115,7 +157,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       clearTimeout(timer);
       intervals.forEach(clearInterval);
       if (skipped && typeof onSkip === 'function') onSkip();
-      const didWin = rightHp <= leftHp;
+      const didWin = authoritativeOutcome ? authoritativeOutcome === 'win' : rightHp <= leftHp;
       if (window.UI) {
         if (endedByKO) UI.announce('KNOCKOUT!', 'high', 1050);
         else UI.announce('TIME!', 'high', 920);
@@ -125,6 +167,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       const goldReward = Number(rewards.gold || 0);
       const fameReward = Number(rewards.fame || 0);
       resultEl.classList.remove('hidden');
+      resultEl.dataset.outcome = didWin ? 'win' : 'loss';
       resultEl.innerHTML = `
         <div class="results-panel overlay-results">
           <h3>${didWin ? 'VICTORY' : 'DEFEAT'}</h3>
@@ -151,15 +194,38 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       timerEl.textContent = remaining;
     }, 250));
 
+    const updateCadence = reduceMotion ? 900 : 620;
+    const steps = Math.max(1, Math.floor(durationMs / updateCadence));
+    const finalHp = authoritativeOutcome === 'win'
+      ? { left: 20 + Math.floor(Math.random() * 56), right: Math.floor(Math.random() * 31) }
+      : authoritativeOutcome === 'loss'
+        ? { left: Math.floor(Math.random() * 31), right: 20 + Math.floor(Math.random() * 56) }
+        : { left: Math.floor(Math.random() * 101), right: Math.floor(Math.random() * 101) };
+    const pace = {
+      left: (100 - finalHp.left) / steps,
+      right: (100 - finalHp.right) / steps
+    };
+    let step = 0;
+
     intervals.push(setInterval(() => {
       if (done) return;
-      const side = Math.random() > 0.5 ? 'left' : 'right';
-      const crit = Math.random() > 0.84;
-      const dmg = Math.floor(Math.random() * 6) + (crit ? 10 : 4);
-      if (side === 'left') leftHp = Math.max(0, leftHp - dmg); else rightHp = Math.max(0, rightHp - dmg);
+      step += 1;
+      const prevLeft = leftHp;
+      const prevRight = rightHp;
+      leftHp = Math.max(finalHp.left, Math.round(100 - (pace.left * step)));
+      rightHp = Math.max(finalHp.right, Math.round(100 - (pace.right * step)));
+      if (step >= steps) {
+        leftHp = finalHp.left;
+        rightHp = finalHp.right;
+      }
       hpLeft.style.width = `${leftHp}%`;
       hpRight.style.width = `${rightHp}%`;
-      if (window.UI) UI.spawnDamageNumber(side, dmg, crit);
+      const leftDrop = Math.max(0, prevLeft - leftHp);
+      const rightDrop = Math.max(0, prevRight - rightHp);
+      const side = rightDrop >= leftDrop ? 'right' : 'left';
+      const dmg = Math.max(leftDrop, rightDrop);
+      const crit = dmg >= 12;
+      if (window.UI && dmg > 0) UI.spawnDamageNumber(side, dmg, crit);
       if (!reduceMotion && window.UI) UI.screenShake(140, crit ? 7 : 4);
       const now = Date.now();
       if (window.AudioManager && now - lastHit > 180) {
@@ -167,7 +233,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
         lastHit = now;
       }
 
-      if (now - hitStreak.lastAt <= 1200 && hitStreak.side === side) {
+      if (now - hitStreak.lastAt <= 1200 && hitStreak.side === side && dmg > 0) {
         hitStreak.count += 1;
       } else {
         hitStreak = { side, count: 1, lastAt: now };
@@ -205,11 +271,11 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
         UI.announce('ON THE ROPES!', 'accent', 760);
       }
 
-      if (leftHp === 0 || rightHp === 0) {
+      if ((leftHp === 0 || rightHp === 0) && step >= steps) {
         endedByKO = true;
         end(false);
       }
-    }, reduceMotion ? 900 : 620));
+    }, updateCadence));
 
     intervals.push(setInterval(() => {
       hype = Math.max(4, hype - 5);
