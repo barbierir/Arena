@@ -90,6 +90,15 @@
         left: { idle: {}, attack: {}, hit: {}, block: {}, death: {} },
         right: { idle: {}, attack: {}, hit: {}, block: {}, death: {} }
       };
+
+      this.spriteDiagnostics = {
+        left: this.#resolveSpriteUrls('left'),
+        right: this.#resolveSpriteUrls('right')
+      };
+    }
+
+    getSpriteDiagnostics() {
+      return this.spriteDiagnostics;
     }
 
     async start() {
@@ -140,6 +149,17 @@
           };
         }));
       }));
+    }
+
+    #resolveSpriteUrls(side) {
+      const fighter = this.fighters[side];
+      const urls = [];
+      LAYER_ORDER.forEach((layerName) => {
+        const layerId = fighter?.appearance?.layers?.[layerName];
+        if (!layerId) return;
+        urls.push(`/sprites/rigs/${fighter.rigType}/${layerId}_idle.png`);
+      });
+      return urls;
     }
 
     #loop(ts) {
