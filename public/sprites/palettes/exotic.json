@@ -1,0 +1,8 @@
+{
+  "groups": {
+    "skin": ["#F2C6A0", "#DFAF8A", "#B77D5A"],
+    "hair": ["#3A2A1A", "#2A1A10"],
+    "cloth": ["#8A1C1C", "#5A0F0F"],
+    "metal": ["#C9A24E", "#8B6A2B"]
+  }
+}

@@ -121,7 +121,24 @@ function resolveOutcome(fightResult) {
   return null;
 }
 
-function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, leftName = 'You', rightName = 'Rival', rewards = {}, fightResult = null }) {
+function buildGladiatorSeed(gladiator = {}) {
+  const hashFn = window.HashUtils && typeof HashUtils.cyrb53 === 'function'
+    ? HashUtils.cyrb53
+    : (value) => {
+      const text = String(value || '');
+      let hash = 2166136261;
+      for (let i = 0; i < text.length; i += 1) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    };
+  if (gladiator && gladiator.id) return Number(hashFn(String(gladiator.id))) >>> 0;
+  const fallback = `${gladiator.name || 'gladiator'}|${gladiator.createdAt || 'na'}|${gladiator.userId || 'na'}`;
+  return Number(hashFn(fallback)) >>> 0;
+}
+
+function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', rightName = 'Rival', rewards = {}, fightResult = null, leftGladiator = {}, rightGladiator = {}, rigLeft = 'heavy', rigRight = 'agile' }) {
   return new Promise((resolve) => {
     if (activeFightPlayback && typeof activeFightPlayback.cleanup === 'function') activeFightPlayback.cleanup();
     const overlay = ensureOverlay();
@@ -136,8 +153,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
     panel.innerHTML = `
       <div class="fight-hud"><div class="fight-timer" id="fxTimer">${Math.ceil(durationMs / 1000)}</div><div class="fight-title">${leftName} vs ${rightName}</div><button id="fxSkipBtn" class="btn btn--tertiary fx-skip">Skip</button></div>
       <div id="fxFightStage" class="fx-fight-stage arcade-stage">
-        <img class="fx-fighter left" src="${leftGif}" alt="Left fighter" />
-        <img class="fx-fighter right" src="${rightGif}" alt="Right fighter" />
+        <canvas id="combatCanvas" class="combat-canvas" width="1280" height="720" aria-label="Arena combat canvas"></canvas>
         <div class="hp-dock hp-left"><span>${leftName}</span><div class="mini-hp"><i id="hpLeft"></i></div></div>
         <div class="hp-dock hp-right"><span>${rightName}</span><div class="mini-hp"><i id="hpRight"></i></div></div>
         <div class="crowd-meter crowd-meter--overlay"><span>HYPE</span><div><i id="crowdMeterFill"></i></div></div>
@@ -149,6 +165,23 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
     overlay.classList.remove('hidden');
     const skipBtn = panel.querySelector('#fxSkipBtn');
     const resultEl = panel.querySelector('#fxResult');
+    const combatCanvas = panel.querySelector('#combatCanvas');
+    const leftSeed = buildGladiatorSeed(leftGladiator);
+    const rightSeed = buildGladiatorSeed(rightGladiator);
+    const renderer = window.CombatRenderer ? new CombatRenderer({
+      canvas: combatCanvas,
+      leftGladiator,
+      rightGladiator,
+      seedLeft: leftSeed,
+      seedRight: rightSeed,
+      rigLeft,
+      rigRight
+    }) : null;
+
+    if (renderer) renderer.start().catch(() => {
+      combatCanvas.classList.add('combat-canvas--fallback');
+      combatCanvas.setAttribute('aria-label', 'Combat sprite assets missing, using placeholder silhouettes.');
+    });
     const hpLeft = panel.querySelector('#hpLeft');
     const hpRight = panel.querySelector('#hpRight');
     const meter = panel.querySelector('#crowdMeterFill');
@@ -171,6 +204,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
     function closeAnd(fn) {
       clearTimeout(timer);
       intervals.forEach(clearInterval);
+      if (renderer) renderer.stop();
       overlay.classList.add('hidden');
       activeFightPlayback = null;
       if (fn) fn();
@@ -189,6 +223,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       done = true;
       clearTimeout(timer);
       intervals.forEach(clearInterval);
+      if (renderer) renderer.stop();
       activeFightPlayback = null;
       overlay.classList.add('hidden');
       resolve({
@@ -271,6 +306,8 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       const side = rightDrop >= leftDrop ? 'right' : 'left';
       const dmg = Math.max(leftDrop, rightDrop);
       const crit = dmg >= 12;
+      if (renderer) renderer.triggerEvent('attack', side === 'right' ? 'left' : 'right');
+      if (renderer && dmg > 0) renderer.triggerEvent(crit ? 'hit' : 'block', side);
       if (window.UI && dmg > 0) UI.spawnDamageNumber(side, dmg, crit);
       if (!reduceMotion && window.UI) UI.screenShake(140, crit ? 7 : 4);
       const now = Date.now();
@@ -318,6 +355,7 @@ function showFightPlayback({ leftGif, rightGif, durationMs = 25000, onSkip, left
       }
 
       if ((leftHp === 0 || rightHp === 0) && step >= steps) {
+        if (renderer) renderer.triggerEvent('death', leftHp === 0 ? 'left' : 'right');
         endedByKO = true;
         end(false);
       }

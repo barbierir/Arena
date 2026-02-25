@@ -271,9 +271,8 @@ body.index-page.arcade-mode .start-new-btn.is-click-bounce {
 .fight-timer { justify-self:start; border:1px solid rgba(255,255,255,.25); border-radius:8px; padding:.2rem .45rem; font-weight:900; min-width:48px; }
 .fx-skip { position: static; }
 .arcade-stage { background: linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.2)), url('/assets/bg-arena.jpg') center / cover; min-height: 340px; position: relative; border-radius: 12px; overflow: hidden; }
-.fx-fighter { position:absolute; bottom:72px; width:min(34%,240px); }
-.fx-fighter.left { left:9%; }
-.fx-fighter.right { right:9%; transform: scaleX(-1); }
+.combat-canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.combat-canvas--fallback { opacity: .9; }
 .hp-dock { position:absolute; bottom:12px; width: 38%; text-align:left; }
 .hp-left { left:12px; }
 .hp-right { right:12px; text-align:right; }
@@ -328,7 +327,6 @@ body.index-page.arcade-mode.reduce-motion::before { display: none; }
   .arcade-grid, .recruit-layout { grid-template-columns: 1fr; }
   .action-bar { flex-wrap: wrap; }
   .recruit-actions { top: 0; position: static; }
-  .fx-fighter { width: 40%; bottom: 90px; }
   .hp-dock { width: 44%; }
 }
 
