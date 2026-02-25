@@ -178,10 +178,24 @@ function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', right
       rigRight
     }) : null;
 
-    if (renderer) renderer.start().catch(() => {
+    // Combat always uses the canvas sprite-sheet pipeline first; no legacy fighter GIFs in the fight flow.
+    if (renderer) {
+      const spriteDiagnostics = typeof renderer.getSpriteDiagnostics === 'function'
+        ? renderer.getSpriteDiagnostics()
+        : { left: [], right: [] };
+      console.info('CombatRenderer active', {
+        left: spriteDiagnostics.left,
+        right: spriteDiagnostics.right
+      });
+      renderer.start().catch(() => {
+        combatCanvas.classList.add('combat-canvas--fallback');
+        combatCanvas.setAttribute('aria-label', 'Combat sprite assets missing, using placeholder silhouettes.');
+      });
+    } else {
+      console.warn('CombatRenderer unavailable; using canvas placeholder fallback.');
       combatCanvas.classList.add('combat-canvas--fallback');
-      combatCanvas.setAttribute('aria-label', 'Combat sprite assets missing, using placeholder silhouettes.');
-    });
+      combatCanvas.setAttribute('aria-label', 'Combat renderer unavailable, using placeholder silhouettes.');
+    }
     const hpLeft = panel.querySelector('#hpLeft');
     const hpRight = panel.querySelector('#hpRight');
     const meter = panel.querySelector('#crowdMeterFill');
