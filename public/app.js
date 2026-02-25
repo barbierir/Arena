@@ -109,6 +109,41 @@ function buildFightLatestAction(fightResult, { runId } = {}) {
 }
 
 let activeFightPlayback = null;
+const FIGHT_DEBUG = Boolean(window.__ARENA_DEV_FIGHT_DEBUG__) || /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
+function fightDebugInfo(tag, payload) {
+  if (!FIGHT_DEBUG) return;
+  if (payload === undefined) {
+    console.info(tag);
+    return;
+  }
+  console.info(tag, payload);
+}
+
+function runFightSmokeAssertions({ panel, spriteDiagnostics }) {
+  if (!FIGHT_DEBUG || !panel) return;
+  const canvas = panel.querySelector('#combatCanvas');
+  if (!canvas) {
+    console.error('[FIGHT][ASSERT] Missing #combatCanvas in fight overlay.');
+  }
+
+  const legacyFighterGifs = Array.from(document.querySelectorAll('img[src*="/assets/"][src*="fight-"]'));
+  const visibleLegacyGifs = legacyFighterGifs.filter((img) => {
+    const style = window.getComputedStyle(img);
+    return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0;
+  });
+  if (visibleLegacyGifs.length) {
+    console.error('[FIGHT][ASSERT] Visible legacy fighter GIFs detected in fight flow.', visibleLegacyGifs.map((img) => img.getAttribute('src')));
+  }
+
+  const spriteUrls = [
+    ...(Array.isArray(spriteDiagnostics?.left) ? spriteDiagnostics.left : []),
+    ...(Array.isArray(spriteDiagnostics?.right) ? spriteDiagnostics.right : [])
+  ].filter((url) => typeof url === 'string' && url.endsWith('.png'));
+  if (!spriteUrls.length) {
+    console.error('[FIGHT][ASSERT] No sprite PNG URLs resolved for combat renderer.');
+  }
+}
 
 function resolveOutcome(fightResult) {
   if (!fightResult) return null;
@@ -138,7 +173,7 @@ function buildGladiatorSeed(gladiator = {}) {
   return Number(hashFn(fallback)) >>> 0;
 }
 
-function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', rightName = 'Rival', rewards = {}, fightResult = null, leftGladiator = {}, rightGladiator = {}, rigLeft = 'heavy', rigRight = 'agile' }) {
+function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', rightName = 'Rival', rewards = {}, fightResult = null, leftGladiator = {}, rightGladiator = {}, rigLeft = 'heavy', rigRight = 'agile', playerSide = 'left' }) {
   return new Promise((resolve) => {
     if (activeFightPlayback && typeof activeFightPlayback.cleanup === 'function') activeFightPlayback.cleanup();
     const overlay = ensureOverlay();
@@ -168,7 +203,8 @@ function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', right
     const combatCanvas = panel.querySelector('#combatCanvas');
     const leftSeed = buildGladiatorSeed(leftGladiator);
     const rightSeed = buildGladiatorSeed(rightGladiator);
-    const renderer = window.CombatRenderer ? new CombatRenderer({
+    fightDebugInfo('[FIGHT] mount', { component: 'public/app.js::showFightPlayback', leftName, rightName, playerSide });
+    const renderer = window.CombatRenderer ? new window.CombatRenderer({
       canvas: combatCanvas,
       leftGladiator,
       rightGladiator,
@@ -179,11 +215,12 @@ function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', right
     }) : null;
 
     // Combat always uses the canvas sprite-sheet pipeline first; no legacy fighter GIFs in the fight flow.
+    let spriteDiagnostics = { left: [], right: [] };
     if (renderer) {
-      const spriteDiagnostics = typeof renderer.getSpriteDiagnostics === 'function'
+      spriteDiagnostics = typeof renderer.getSpriteDiagnostics === 'function'
         ? renderer.getSpriteDiagnostics()
         : { left: [], right: [] };
-      console.info('CombatRenderer active', {
+      fightDebugInfo('[RENDER] CombatRenderer active', {
         left: spriteDiagnostics.left,
         right: spriteDiagnostics.right
       });
@@ -192,10 +229,11 @@ function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', right
         combatCanvas.setAttribute('aria-label', 'Combat sprite assets missing, using placeholder silhouettes.');
       });
     } else {
-      console.warn('CombatRenderer unavailable; using canvas placeholder fallback.');
+      console.warn('[RENDER] Legacy GIF path used', { reason: 'CombatRenderer unavailable', gifs: [] });
       combatCanvas.classList.add('combat-canvas--fallback');
       combatCanvas.setAttribute('aria-label', 'Combat renderer unavailable, using placeholder silhouettes.');
     }
+    runFightSmokeAssertions({ panel, spriteDiagnostics });
     const hpLeft = panel.querySelector('#hpLeft');
     const hpRight = panel.querySelector('#hpRight');
     const meter = panel.querySelector('#crowdMeterFill');
@@ -256,7 +294,8 @@ function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', right
       clearTimeout(timer);
       intervals.forEach(clearInterval);
       if (skipped && typeof onSkip === 'function') onSkip();
-      const didWin = authoritativeOutcome ? authoritativeOutcome === 'win' : rightHp <= leftHp;
+      // single source of truth for fight state: authoritativeOutcome is always from the player's perspective.
+      const didWin = authoritativeOutcome ? authoritativeOutcome === 'win' : (playerSide === 'left' ? rightHp <= leftHp : leftHp <= rightHp);
       if (window.UI) {
         if (endedByKO) UI.announce('KNOCKOUT!', 'high', 1050);
         else UI.announce('TIME!', 'high', 920);
@@ -279,6 +318,13 @@ function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', right
         UI.animateCount(resultEl.querySelector('#rewardFame'), 0, fameReward, 550, reduceMotion);
       }
       resultEl.querySelector('#fxClose').onclick = () => closeAnd();
+      fightDebugInfo('[FIGHT] result', {
+        winner: didWin ? 'player' : 'opponent',
+        loser: didWin ? 'opponent' : 'player',
+        leftHp,
+        rightHp,
+        playerSide
+      });
     }
 
     skipBtn.onclick = () => end(true);
@@ -291,11 +337,22 @@ function showFightPlayback({ durationMs = 30000, onSkip, leftName = 'You', right
 
     const updateCadence = reduceMotion ? 900 : 620;
     const steps = Math.max(1, Math.floor(durationMs / updateCadence));
-    const finalHp = authoritativeOutcome === 'win'
-      ? { left: 20 + Math.floor(Math.random() * 56), right: Math.floor(Math.random() * 31) }
-      : authoritativeOutcome === 'loss'
-        ? { left: Math.floor(Math.random() * 31), right: 20 + Math.floor(Math.random() * 56) }
-        : { left: Math.floor(Math.random() * 101), right: Math.floor(Math.random() * 101) };
+    // single source of truth for fight state: hp projections derive from authoritativeOutcome + playerSide.
+    const playerWins = authoritativeOutcome === 'win';
+    const playerLoses = authoritativeOutcome === 'loss';
+    const playerHpRange = playerWins
+      ? 20 + Math.floor(Math.random() * 56)
+      : playerLoses
+        ? Math.floor(Math.random() * 31)
+        : Math.floor(Math.random() * 101);
+    const opponentHpRange = playerWins
+      ? Math.floor(Math.random() * 31)
+      : playerLoses
+        ? 20 + Math.floor(Math.random() * 56)
+        : Math.floor(Math.random() * 101);
+    const finalHp = playerSide === 'left'
+      ? { left: playerHpRange, right: opponentHpRange }
+      : { left: opponentHpRange, right: playerHpRange };
     const pace = {
       left: (100 - finalHp.left) / steps,
       right: (100 - finalHp.right) / steps
