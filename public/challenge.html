@@ -20,7 +20,7 @@
       <p id="result" class="muted"></p><p id="error" class="error"></p>
     </div></main>
     <footer id="actionBar" class="action-bar"></footer>
-    <script src="/api.js"></script><script src="/audio.js"></script><script src="/ui.js"></script><script src="/app.js"></script>
+    <script src="/api.js"></script><script src="/audio.js"></script><script src="/ui.js"></script><script src="/utils/hash.js"></script><script src="/utils/seededRng.js"></script><script src="/render/spriteSheetLoader.js"></script><script src="/render/paletteSwap.js"></script><script src="/render/combatRenderer.js"></script><script src="/app.js"></script>
     <script>
       App.renderNav(); UI.setActionBar([]); let acceptInFlight = false;
       function challengeIdFromUrl() { const q=new URLSearchParams(location.search); const from=q.get('id')||q.get('challengeId')||''; if (from) return from; const m=location.pathname.match(/^\/challenge\/([^/]+)$/); return m ? decodeURIComponent(m[1]) : ''; }
@@ -35,7 +35,7 @@
         document.getElementById('acceptBtn').disabled = true;
         try {
           const data = await Api.request(`/api/challenge/${encodeURIComponent(challengeId)}/accept`, { method:'POST', headers: Api.jsonHeaders(), body: JSON.stringify({ runId, playerId }) });
-          await App.showFightPlayback({ leftGif:'/assets/fight-left.gif', rightGif:'/assets/fight-right.gif', durationMs:15000, fightResult: { outcome: data.result.winnerRunId === runId ? 'win' : 'loss' } });
+          await App.showFightPlayback({ durationMs:30000, leftName: 'Challenger', rightName: 'Accepter', fightResult: { outcome: data.result.winnerRunId === runId ? 'win' : 'loss' }, leftGladiator: { id: data.challenge?.runId || 'challenger', name: 'Challenger', userId: data.challenge?.playerId || 'unknown', stats: data.challenge?.creatorSnapshot?.stats || { STR: 7, AGI: 7, END: 7, Talent: 1 } }, rightGladiator: { id: runId || 'accepter', name: 'Accepter', userId: playerId || 'unknown', stats: data.accepterRun?.stats || { STR: 7, AGI: 7, END: 7, Talent: 1 } }, rigLeft: 'heavy', rigRight: 'agile' });
           App.appendLatestAction(App.buildFightLatestAction({ ...data.result, outcome: data.result.winnerRunId === runId ? 'win' : 'loss' }, { runId }), { runId });
           document.getElementById('result').textContent = `Winner run: ${data.result.winnerRunId}`;
           setChallengeView({ challenge: data.challenge });
