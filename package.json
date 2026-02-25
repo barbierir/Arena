@@ -5,13 +5,16 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "npm run validate:sprites && nodemon server/index.js",
+    "validate:sprites": "node scripts/validateSpritePalette.mjs",
+    "quantize:sprites": "node scripts/quantizeToCanonicalPalette.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "pngjs": "^7.0.0"
   }
 }

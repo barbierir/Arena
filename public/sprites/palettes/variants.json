@@ -1,0 +1,79 @@
+{
+  "skin": [
+    {
+      "SKIN_1": "#F2C6A0FF",
+      "SKIN_2": "#DFAF8AFF",
+      "SKIN_3": "#B77D5AFF"
+    },
+    {
+      "SKIN_1": "#F0D6B8FF",
+      "SKIN_2": "#D7B893FF",
+      "SKIN_3": "#A97A58FF"
+    },
+    {
+      "SKIN_1": "#D49B77FF",
+      "SKIN_2": "#B97D5EFF",
+      "SKIN_3": "#7E4F3BFF"
+    }
+  ],
+  "hair": [
+    {
+      "HAIR_1": "#3A2A1AFF",
+      "HAIR_2": "#2A1A10FF"
+    },
+    {
+      "HAIR_1": "#C7A23CFF",
+      "HAIR_2": "#8C6A18FF"
+    },
+    {
+      "HAIR_1": "#8C2F1AFF",
+      "HAIR_2": "#5E1D11FF"
+    }
+  ],
+  "cloth": [
+    {
+      "CLOTH_1": "#8A1C1CFF",
+      "CLOTH_2": "#5A0F0FFF"
+    },
+    {
+      "CLOTH_1": "#2B4C8CFF",
+      "CLOTH_2": "#1C315FFF"
+    },
+    {
+      "CLOTH_1": "#3A6A2AFF",
+      "CLOTH_2": "#27471CFF"
+    }
+  ],
+  "metal": [
+    {
+      "METAL_1": "#C9A24EFF",
+      "METAL_2": "#8B6A2BFF"
+    },
+    {
+      "METAL_1": "#B9C0C6FF",
+      "METAL_2": "#7A828AFF"
+    },
+    {
+      "METAL_1": "#6E7077FF",
+      "METAL_2": "#2D3038FF"
+    }
+  ],
+  "leather": [
+    {
+      "LEATHER_1": "#7A4A2DFF",
+      "LEATHER_2": "#4C2A18FF"
+    },
+    {
+      "LEATHER_1": "#6D5333FF",
+      "LEATHER_2": "#46331DFF"
+    }
+  ],
+  "eye": [
+    {
+      "EYE_1": "#1C5AA6FF"
+    },
+    {
+      "EYE_1": "#3A7CC9FF"
+    }
+  ]
+}

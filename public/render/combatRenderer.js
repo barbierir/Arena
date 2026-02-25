@@ -15,58 +15,6 @@
     shield: ['shield_round', 'shield_tower']
   };
 
-  const PALETTE_PRESETS = {
-    skin: [
-      ['#F2C6A0', '#DFAF8A', '#B77D5A'],
-      ['#EEC09A', '#CF9B74', '#976145'],
-      ['#D49B77', '#B97D5E', '#7E4F3B'],
-      ['#7E5A45', '#684734', '#4A3225']
-    ],
-    hair: [
-      ['#3A2A1A', '#2A1A10'],
-      ['#2F1E12', '#1D120B'],
-      ['#6A4A2E', '#4D321D'],
-      ['#C7A35F', '#A57F3E'],
-      ['#8C2F1A', '#5E1D11'],
-      ['#1B1B1B', '#080808']
-    ],
-    cloth: [
-      ['#8A1C1C', '#5A0F0F'],
-      ['#2B4C8C', '#1C315F'],
-      ['#3A6A2A', '#27471C'],
-      ['#7A2D7A', '#501E50'],
-      ['#7B5B1A', '#533B10'],
-      ['#8D3F1F', '#642C15'],
-      ['#2D6A6A', '#1C4949'],
-      ['#6B1E2F', '#4A1520']
-    ],
-    metal: [
-      ['#C9A24E', '#8B6A2B'],
-      ['#B9C0C6', '#7A828A'],
-      ['#6E7077', '#2D3038']
-    ]
-  };
-
-  async function loadPaletteDefinition(rigType) {
-    const fallback = {
-      groups: {
-        skin: ['#F2C6A0', '#DFAF8A', '#B77D5A'],
-        hair: ['#3A2A1A', '#2A1A10'],
-        cloth: ['#8A1C1C', '#5A0F0F'],
-        metal: ['#C9A24E', '#8B6A2B']
-      }
-    };
-
-    try {
-      const response = await fetch(`/sprites/palettes/${rigType}.json`);
-      if (!response.ok) return fallback;
-      const data = await response.json();
-      return data && data.groups ? data : fallback;
-    } catch (_) {
-      return fallback;
-    }
-  }
-
   function pick(list, rng, fallback = null) {
     if (!Array.isArray(list) || !list.length) return fallback;
     return list[Math.floor(rng() * list.length)] || fallback;
@@ -93,10 +41,12 @@
         shield: isHeavy ? (rng() > 0.12 ? pick(STYLE_VARIANTS.shield, rng, 'shield_round') : null) : (rng() > 0.65 ? 'shield_round' : null)
       },
       paletteVariant: {
-        skin: pick(PALETTE_PRESETS.skin, rng, PALETTE_PRESETS.skin[0]),
-        hair: pick(PALETTE_PRESETS.hair, rng, PALETTE_PRESETS.hair[0]),
-        cloth: pick(PALETTE_PRESETS.cloth, rng, PALETTE_PRESETS.cloth[0]),
-        metal: pick(PALETTE_PRESETS.metal, rng, PALETTE_PRESETS.metal[0])
+        skinVariant: Math.floor(rng() * 3),
+        hairVariant: Math.floor(rng() * 3),
+        clothVariant: Math.floor(rng() * 3),
+        metalVariant: Math.floor(rng() * 3),
+        leatherVariant: Math.floor(rng() * 2),
+        eyeVariant: Math.floor(rng() * 2)
       }
     };
   }
@@ -165,8 +115,8 @@
 
     async #prepareFighter(side) {
       const fighter = this.fighters[side];
-      const palette = await loadPaletteDefinition(fighter.rigType);
-      fighter.palette = palette;
+      const paletteData = await globalScope.PaletteSwap.loadCanonicalPalette();
+      const swapMap = globalScope.PaletteSwap.buildSwapMap(fighter.appearance.paletteVariant, paletteData);
 
       const assetStates = ['idle', 'attack', 'hit', 'block', 'death'];
       await Promise.all(assetStates.map(async (stateName) => {
@@ -177,11 +127,7 @@
           const loaded = await this.loader.load(assetPath, this.meta);
           if (!loaded) return;
 
-          const mapping = globalScope.PaletteSwap.buildMapping(
-            fighter.palette.groups,
-            fighter.appearance.paletteVariant
-          );
-          const recolored = globalScope.PaletteSwap.recolorSprite(loaded.image, mapping, `${assetPath}|${fighter.seed}`);
+          const recolored = globalScope.PaletteSwap.recolorSprite(loaded.image, swapMap, `${assetPath}|${fighter.seed}`);
           this.meta = {
             frameWidth: loaded.frameWidth,
             frameHeight: loaded.frameHeight,
