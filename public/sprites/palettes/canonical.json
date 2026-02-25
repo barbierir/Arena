@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "transparent": "#00000000",
+  "colors": {
+    "SKIN_1": "#F2C6A0FF",
+    "SKIN_2": "#DFAF8AFF",
+    "SKIN_3": "#B77D5AFF",
+    "HAIR_1": "#3A2A1AFF",
+    "HAIR_2": "#2A1A10FF",
+    "CLOTH_1": "#8A1C1CFF",
+    "CLOTH_2": "#5A0F0FFF",
+    "METAL_1": "#C9A24EFF",
+    "METAL_2": "#8B6A2BFF",
+    "LEATHER_1": "#7A4A2DFF",
+    "LEATHER_2": "#4C2A18FF",
+    "EYE_1": "#1C5AA6FF"
+  },
+  "groups": {
+    "skin": ["SKIN_1", "SKIN_2", "SKIN_3"],
+    "hair": ["HAIR_1", "HAIR_2"],
+    "cloth": ["CLOTH_1", "CLOTH_2"],
+    "metal": ["METAL_1", "METAL_2"],
+    "leather": ["LEATHER_1", "LEATHER_2"],
+    "eye": ["EYE_1"]
+  },
+  "reserved": {
+    "DO_NOT_USE_FOR_SHADING": []
+  }
+}

@@ -18,11 +18,13 @@ Example:
 3. Use a unique layer id prefix (`helmet_03`, `weapon_axe`, etc.).
 4. Update style pools in `public/render/combatRenderer.js` if you want deterministic picker support.
 
-## Adding a new palette group
-1. Edit `/public/sprites/palettes/<rigType>.json`.
-2. Add exact canonical colors under `groups.<name>`.
-3. Add matching variant arrays in `PALETTE_PRESETS` in `public/render/combatRenderer.js`.
-4. Palette swap maps exact RGBA colors once per asset + palette key and caches recolored sheets.
+## Palette system (canonical only)
+1. Source of truth is `/public/sprites/palettes/canonical.json`.
+2. Variant targets are in `/public/sprites/palettes/variants.json`.
+3. Sprite files may only contain colors from canonical (plus `#00000000`).
+4. Validate with `npm run validate:sprites`.
+5. Optional dev repair: `npm run quantize:sprites -- <file-or-folder>`.
+6. Runtime swap only maps exact canonical keys within declared groups and caches recolored assets once.
 
 ## Seed source
 - Deterministic seed comes from `gladiator.id` when available.
